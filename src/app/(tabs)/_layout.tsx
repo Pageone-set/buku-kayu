@@ -1,94 +1,163 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS } from '../../theme/tokens';
+import { COLORS, FONTS, SHADOWS } from '../../theme/tokens';
+
+type CustomTabBarProps = Parameters<
+  NonNullable<React.ComponentProps<typeof Tabs>['tabBar']>
+>[0];
+
+type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
+
+const TAB_CONFIG: Record<string, { icon: FeatherIconName; label: string }> = {
+  index: { icon: 'home', label: 'Beranda' },
+  sales: { icon: 'file-text', label: 'Jual' },
+  orders: { icon: 'layers', label: 'Orderan' },
+  stock: { icon: 'box', label: 'Stok' },
+  cashflow: { icon: 'credit-card', label: 'Kas' },
+};
+
+function FloatingPillTabBar({
+  state,
+  descriptors,
+  emitter,
+  navigateToTab,
+}: CustomTabBarProps) {
+  const insets = useSafeAreaInsets();
+  const bottomOffset = Math.max(insets.bottom, 12);
+
+  return (
+    <View
+      pointerEvents="box-none"
+      style={[styles.wrapper, { bottom: bottomOffset }]}
+    >
+      <View style={styles.capsule} accessibilityRole="tablist">
+        {state.routes.map((route, index) => {
+          const descriptor = descriptors[route.key];
+          const options = descriptor?.options;
+          if (options?.hidden) {
+            return null;
+          }
+
+          const focused = index === state.index;
+          const config = TAB_CONFIG[route.name] ?? {
+            icon: 'circle' as FeatherIconName,
+            label: options?.title ?? route.name,
+          };
+
+          const handlePress = () => {
+            const event = emitter.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
+            if (!focused && !event.defaultPrevented) {
+              navigateToTab(route.key);
+            }
+          };
+
+          const handleLongPress = () => {
+            emitter.emit({
+              type: 'tabLongPress',
+              target: route.key,
+            });
+          };
+
+          return (
+            <TouchableOpacity
+              key={route.key}
+              activeOpacity={0.82}
+              onPress={handlePress}
+              onLongPress={handleLongPress}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: focused }}
+              accessibilityLabel={options?.tabBarAccessibilityLabel ?? config.label}
+              style={[styles.tabItem, focused && styles.tabItemActive]}
+            >
+              <Feather
+                name={config.icon}
+                size={20}
+                color={focused ? COLORS.textOnDark : '#9CA3AF'}
+              />
+              <Text
+                style={[styles.tabLabel, focused && styles.tabLabelActive]}
+                numberOfLines={1}
+              >
+                {config.label}
+              </Text>
+              {focused ? <View style={styles.activeDot} /> : null}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
 
 export default function TabsLayout() {
-  const insets = useSafeAreaInsets();
-  const bottomPad = Math.max(insets.bottom, 8);
-
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: COLORS.amber,
-        tabBarInactiveTintColor: COLORS.textMuted,
-        tabBarStyle: {
-          height: 62 + bottomPad,
-          paddingBottom: bottomPad,
-          paddingTop: 6,
-          backgroundColor: COLORS.surface,
-          borderTopColor: COLORS.border,
-          borderTopWidth: 1,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '700',
-        },
+        sceneStyle: { backgroundColor: COLORS.bg },
       }}
+      tabBar={(props) => <FloatingPillTabBar {...props} />}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Beranda',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="home" size={size + 2} color={color as string} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="sales"
-        options={{
-          title: 'Jual Kayu',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons
-              name="receipt-text-outline"
-              size={size + 2}
-              color={color as string}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="orders"
-        options={{
-          title: 'Orderan',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons
-              name="hammer-wrench"
-              size={size + 2}
-              color={color as string}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="stock"
-        options={{
-          title: 'Stok Balok',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons
-              name="pine-tree"
-              size={size + 2}
-              color={color as string}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="cashflow"
-        options={{
-          title: 'Buku Kas',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons
-              name="cash-multiple"
-              size={size + 2}
-              color={color as string}
-            />
-          ),
-        }}
-      />
+      <Tabs.Screen name="index" options={{ title: 'Beranda' }} />
+      <Tabs.Screen name="sales" options={{ title: 'Jual Kayu' }} />
+      <Tabs.Screen name="orders" options={{ title: 'Orderan' }} />
+      <Tabs.Screen name="stock" options={{ title: 'Stok Balok' }} />
+      <Tabs.Screen name="cashflow" options={{ title: 'Buku Kas' }} />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  wrapper: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    alignItems: 'center',
+  },
+  capsule: {
+    width: '100%',
+    height: 66,
+    borderRadius: 999,
+    backgroundColor: COLORS.navBarBg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    gap: 2,
+    ...SHADOWS.navPill,
+  },
+  tabItem: {
+    flex: 1,
+    minHeight: 52,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    gap: 2,
+  },
+  tabItemActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontFamily: FONTS.medium,
+    color: '#9CA3AF',
+  },
+  tabLabelActive: {
+    fontFamily: FONTS.bold,
+    color: COLORS.textOnDark,
+  },
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.ocean,
+    marginTop: 1,
+  },
+});

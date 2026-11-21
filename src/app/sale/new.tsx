@@ -1,6 +1,6 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import { Feather } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -12,21 +12,33 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChipSelector } from '../../components/ui/ChipSelector';
+import { DimensionSpecStrip } from '../../components/ui/DimensionSpecStrip';
 import { MoneyInput } from '../../components/ui/MoneyInput';
 import { NumberStepper } from '../../components/ui/NumberStepper';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { SectionCard } from '../../components/ui/SectionCard';
+import { WoodSwatchBadge } from '../../components/ui/WoodSwatchBadge';
 import { createWoodSale } from '../../db/salesRepo';
 import { listWoodStocks } from '../../db/stockRepo';
+import {
+  createWoodDimension,
+  listWoodDimensions,
+  listWoodTypes,
+} from '../../db/woodPresetsRepo';
 import { useAppStore } from '../../store/useAppStore';
-import { COLORS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import {
+  COLORS,
+  FONTS,
+  SIZING,
+  TYPOGRAPHY,
+} from '../../theme/tokens';
 import {
   CreateWoodSaleItemInput,
-  DIMENSION_PRESETS,
   LENGTH_PRESETS_CM,
-  WOOD_TYPE_PRESETS,
+  WoodDimensionPreset,
   WoodPaymentStatus,
   WoodStock,
+  WoodTypePreset,
 } from '../../types/domain';
 import {
   calculateItemSubtotal,
@@ -39,6 +51,7 @@ import {
   formatRupiah,
   formatVolumeM3,
 } from '../../utils/formatters';
+import { formatDimensionNumber } from '../../utils/woodPresetHelpers';
 
 interface CartItem extends CreateWoodSaleItemInput {
   localKey: string;
@@ -49,8 +62,11 @@ interface CartItem extends CreateWoodSaleItemInput {
 type InputSourceMode = 'STOCK' | 'CUSTOM';
 
 export default function NewWoodSaleScreen() {
+  const dbRevision = useAppStore((s) => s.dbRevision);
   const bumpDbRevision = useAppStore((s) => s.bumpDbRevision);
   const [stocks, setStocks] = useState<WoodStock[]>([]);
+  const [woodTypes, setWoodTypes] = useState<WoodTypePreset[]>([]);
+  const [dimensions, setDimensions] = useState<WoodDimensionPreset[]>([]);
   const [sourceMode, setSourceMode] = useState<InputSourceMode>('STOCK');
   const [selectedStockId, setSelectedStockId] = useState<number | null>(null);
 
@@ -70,21 +86,7 @@ export default function NewWoodSaleScreen() {
   const [notes, setNotes] = useState<string>('');
   const [saving, setSaving] = useState<boolean>(false);
 
-  useEffect(() => {
-    void listWoodStocks()
-      .then((rows) => {
-        setStocks(rows);
-        const firstAvailable = rows.find((r) => r.stock_qty > 0);
-        if (firstAvailable) {
-          applyStockItem(firstAvailable);
-        } else {
-          setSourceMode('CUSTOM');
-        }
-      })
-      .catch(() => undefined);
-  }, []);
-
-  const applyStockItem = (stock: WoodStock) => {
+  const applyStockItem = useCallback((stock: WoodStock) => {
     setSelectedStockId(stock.id);
     setWoodType(stock.wood_type);
     setLengthCm(String(stock.length_cm));
@@ -92,7 +94,53 @@ export default function NewWoodSaleScreen() {
     setThicknessCm(String(stock.thickness_cm));
     setPricePerM3(stock.sell_price_m3 || 0);
     setQty((prev) => Math.min(Math.max(1, prev), Math.max(1, stock.stock_qty)));
-  };
+  }, []);
+
+  const loadPresetsAndStocks = useCallback(async () => {
+    try {
+      const [stockRows, typeRows, dimRows] = await Promise.all([
+        listWoodStocks(),
+        listWoodTypes(),
+        listWoodDimensions(),
+      ]);
+      setStocks(stockRows);
+      setWoodTypes(typeRows);
+      setDimensions(dimRows);
+
+      setSelectedStockId((currentId) => {
+        if (currentId !== null) {
+          return currentId;
+        }
+        const firstAvailable = stockRows.find((r) => r.stock_qty > 0);
+        if (firstAvailable) {
+          applyStockItem(firstAvailable);
+          return firstAvailable.id;
+        }
+        setSourceMode('CUSTOM');
+        return null;
+      });
+    } catch {
+      // ignore transient error
+    }
+  }, [applyStockItem]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadPresetsAndStocks();
+    }, [loadPresetsAndStocks])
+  );
+
+  useEffect(() => {
+    void loadPresetsAndStocks();
+  }, [dbRevision, loadPresetsAndStocks]);
+
+  const woodColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const item of woodTypes) {
+      map.set(item.name.trim().toLowerCase(), item.color_hex);
+    }
+    return map;
+  }, [woodTypes]);
 
   const numLength = Number.parseFloat(lengthCm) || 0;
   const numWidth = Number.parseFloat(widthCm) || 0;
@@ -250,18 +298,25 @@ export default function NewWoodSaleScreen() {
                     return (
                       <TouchableOpacity
                         key={stock.id}
-                        activeOpacity={0.75}
+                        activeOpacity={0.78}
                         onPress={() => applyStockItem(stock)}
                         style={[
                           styles.stockOption,
                           active && styles.stockOptionActive,
                         ]}
                       >
+                        <WoodSwatchBadge
+                          woodType={stock.wood_type}
+                          colorHex={woodColorMap.get(
+                            stock.wood_type.trim().toLowerCase()
+                          )}
+                          size={18}
+                        />
                         <View style={{ flex: 1 }}>
                           <Text
                             style={[
                               styles.stockOptionTitle,
-                              active && { color: COLORS.amberDark },
+                              active && { color: COLORS.navy },
                             ]}
                           >
                             {stock.wood_type} •{' '}
@@ -277,10 +332,10 @@ export default function NewWoodSaleScreen() {
                           </Text>
                         </View>
                         {active ? (
-                          <MaterialCommunityIcons
+                          <Feather
                             name="check-circle"
-                            size={24}
-                            color={COLORS.amber}
+                            size={22}
+                            color={COLORS.ocean}
                           />
                         ) : null}
                       </TouchableOpacity>
@@ -290,18 +345,77 @@ export default function NewWoodSaleScreen() {
             </View>
           ) : (
             <View style={styles.customBox}>
-              <Text style={styles.fieldLabel}>Jenis Kayu</Text>
-              <ChipSelector
-                options={WOOD_TYPE_PRESETS.map((w) => ({ label: w, value: w }))}
-                value={
-                  WOOD_TYPE_PRESETS.includes(
-                    woodType as (typeof WOOD_TYPE_PRESETS)[number]
-                  )
-                    ? woodType
-                    : ''
-                }
-                onChange={setWoodType}
-              />
+              <View style={styles.sectionHeaderInline}>
+                <Text style={styles.fieldLabel}>Pilih Jenis Kayu</Text>
+                <TouchableOpacity
+                  activeOpacity={0.78}
+                  onPress={() => router.push('/settings/wood-presets?tab=wood')}
+                  style={styles.manageLinkPill}
+                >
+                  <Feather name="sliders" size={13} color={COLORS.ocean} />
+                  <Text style={styles.manageLinkText}>Atur / + Tambah</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.circlePresetRow}
+              >
+                {woodTypes.map((preset) => {
+                  const active =
+                    woodType.trim().toLowerCase() ===
+                    preset.name.trim().toLowerCase();
+                  return (
+                    <TouchableOpacity
+                      key={preset.id}
+                      activeOpacity={0.78}
+                      onPress={() => {
+                        setWoodType(preset.name);
+                        if (preset.default_price_m3 > 0) {
+                          setPricePerM3(preset.default_price_m3);
+                        }
+                      }}
+                      style={styles.circlePresetItem}
+                    >
+                      <View
+                        style={[
+                          styles.circleWell,
+                          active && styles.circleWellActive,
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.swatchDot,
+                            { backgroundColor: preset.color_hex },
+                          ]}
+                        />
+                      </View>
+                      <Text
+                        style={[
+                          styles.circlePresetLabel,
+                          active && styles.circlePresetLabelActive,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {preset.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+
+                <TouchableOpacity
+                  activeOpacity={0.78}
+                  onPress={() => router.push('/settings/wood-presets?tab=wood')}
+                  style={styles.circlePresetItem}
+                >
+                  <View style={[styles.circleWell, styles.circleWellAdd]}>
+                    <Feather name="plus" size={20} color={COLORS.ocean} />
+                  </View>
+                  <Text style={styles.circlePresetAddLabel}>Tambah</Text>
+                </TouchableOpacity>
+              </ScrollView>
+
               <TextInput
                 style={styles.textInput}
                 value={woodType}
@@ -310,18 +424,37 @@ export default function NewWoodSaleScreen() {
                 placeholderTextColor={COLORS.textMuted}
               />
 
-              <Text style={styles.fieldLabel}>Ukuran Cepat (Tebal × Lebar cm)</Text>
+              <View style={styles.sectionHeaderInline}>
+                <Text style={styles.fieldLabel}>Ukuran Standar (T × L cm)</Text>
+                <TouchableOpacity
+                  activeOpacity={0.78}
+                  onPress={() => router.push('/settings/wood-presets?tab=size')}
+                  style={styles.manageLinkPill}
+                >
+                  <Feather name="edit-2" size={13} color={COLORS.ocean} />
+                  <Text style={styles.manageLinkText}>Atur Ukuran</Text>
+                </TouchableOpacity>
+              </View>
+
               <ChipSelector
-                options={DIMENSION_PRESETS.map((d) => ({
+                options={dimensions.map((d) => ({
                   label: d.label,
-                  value: `${d.thicknessCm}x${d.widthCm}`,
+                  value: `${formatDimensionNumber(d.thickness_cm)}x${formatDimensionNumber(
+                    d.width_cm
+                  )}x${formatDimensionNumber(d.default_length_cm)}`,
                 }))}
-                value={`${numThickness}x${numWidth}`}
+                value={`${formatDimensionNumber(numThickness)}x${formatDimensionNumber(
+                  numWidth
+                )}x${formatDimensionNumber(numLength)}`}
                 onChange={(val) => {
-                  const [t, w] = val.split('x');
+                  const [t, w, l] = val.split('x');
                   setThicknessCm(t);
                   setWidthCm(w);
+                  if (l) {
+                    setLengthCm(l);
+                  }
                 }}
+                scrollable
               />
 
               <Text style={styles.fieldLabel}>Panjang Cepat (cm)</Text>
@@ -363,8 +496,61 @@ export default function NewWoodSaleScreen() {
                   />
                 </View>
               </View>
+
+              {numThickness > 0 &&
+              numWidth > 0 &&
+              numLength > 0 &&
+              !dimensions.some(
+                (d) =>
+                  d.thickness_cm === numThickness &&
+                  d.width_cm === numWidth &&
+                  d.default_length_cm === numLength
+              ) ? (
+                <TouchableOpacity
+                  activeOpacity={0.78}
+                  onPress={async () => {
+                    try {
+                      await createWoodDimension({
+                        thicknessCm: numThickness,
+                        widthCm: numWidth,
+                        defaultLengthCm: numLength,
+                      });
+                      bumpDbRevision(true);
+                      await loadPresetsAndStocks();
+                      Alert.alert(
+                        'Ukuran Disimpan',
+                        `Ukuran ${formatDimensionNumber(
+                          numThickness
+                        )}×${formatDimensionNumber(
+                          numWidth
+                        )} (${formatDimensionNumber(
+                          numLength
+                        )} cm) ditambahkan ke daftar Ukuran Standar.`
+                      );
+                    } catch (err) {
+                      Alert.alert(
+                        'Gagal Simpan Ukuran',
+                        err instanceof Error ? err.message : 'Coba lagi.'
+                      );
+                    }
+                  }}
+                  style={styles.saveQuickDimBtn}
+                >
+                  <Feather name="bookmark" size={14} color={COLORS.ocean} />
+                  <Text style={styles.saveQuickDimText}>
+                    + Simpan ukuran {formatDimensionNumber(numThickness)}×
+                    {formatDimensionNumber(numWidth)} ({formatDimensionNumber(numLength)} cm) ke daftar
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           )}
+
+          <DimensionSpecStrip
+            lengthCm={numLength}
+            widthCm={numWidth}
+            thicknessCm={numThickness}
+          />
 
           <NumberStepper
             label="Jumlah Batang"
@@ -400,13 +586,7 @@ export default function NewWoodSaleScreen() {
             title="+ Tambah ke Nota"
             variant="outline"
             onPress={handleAddToCart}
-            icon={
-              <MaterialCommunityIcons
-                name="plus-circle-outline"
-                size={22}
-                color={COLORS.textPrimary}
-              />
-            }
+            icon={<Feather name="plus-circle" size={19} color={COLORS.ocean} />}
           />
         </SectionCard>
 
@@ -428,6 +608,11 @@ export default function NewWoodSaleScreen() {
             <View style={{ gap: 10 }}>
               {cart.map((item, idx) => (
                 <View key={item.localKey} style={styles.cartItem}>
+                  <WoodSwatchBadge
+                    woodType={item.woodType}
+                    colorHex={woodColorMap.get(item.woodType.trim().toLowerCase())}
+                    size={14}
+                  />
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={styles.cartItemTitle}>
                       {idx + 1}. {item.woodType} (
@@ -451,25 +636,31 @@ export default function NewWoodSaleScreen() {
                     style={styles.removeBtn}
                     accessibilityLabel="Hapus item"
                   >
-                    <MaterialCommunityIcons
-                      name="trash-can-outline"
-                      size={22}
-                      color={COLORS.red}
-                    />
+                    <Feather name="trash-2" size={18} color={COLORS.red} />
                   </TouchableOpacity>
                 </View>
               ))}
 
-              <View style={styles.grandTotalBox}>
-                <View>
-                  <Text style={styles.grandLabel}>
-                    Total {formatVolumeM3(cartTotals.totalVolumeM3)}
+              <View style={styles.grandSummaryCard}>
+                <View style={styles.summaryLine}>
+                  <Text style={styles.summaryKey}>Total Batang</Text>
+                  <Text style={styles.summaryVal}>
+                    {cart.reduce((s, c) => s + c.qty, 0)} Batang
                   </Text>
-                  <Text style={styles.grandTitle}>TOTAL NOTA</Text>
                 </View>
-                <Text style={styles.grandAmount}>
-                  {formatRupiah(cartTotals.totalAmount)}
-                </Text>
+                <View style={styles.summaryLine}>
+                  <Text style={styles.summaryKey}>Total Kubikasi</Text>
+                  <Text style={styles.summaryVal}>
+                    {formatVolumeM3(cartTotals.totalVolumeM3)}
+                  </Text>
+                </View>
+                <View style={styles.summaryDivider} />
+                <View style={styles.summaryLine}>
+                  <Text style={styles.grandTitle}>Total Harga Nota</Text>
+                  <Text style={styles.grandAmount}>
+                    {formatRupiah(cartTotals.totalAmount)}
+                  </Text>
+                </View>
               </View>
             </View>
           )}
@@ -540,17 +731,18 @@ export default function NewWoodSaleScreen() {
         <PrimaryButton
           title="Simpan Nota Penjualan"
           size="lg"
-          variant="success"
+          variant="primary"
           loading={saving}
           onPress={handleSaveSale}
-          icon={
-            <MaterialCommunityIcons
-              name="content-save-check"
-              size={24}
-              color={COLORS.textOnDark}
-            />
-          }
+          icon={<Feather name="check" size={20} color={COLORS.textOnDark} />}
         />
+
+        <View style={styles.offlineReassurance}>
+          <Feather name="shield" size={14} color={COLORS.green} />
+          <Text style={styles.offlineReassuranceText}>
+            Otomatis potong stok &amp; catat di Buku Kas
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -568,7 +760,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: TYPOGRAPHY.label,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
     marginTop: 4,
   },
@@ -580,13 +772,14 @@ const styles = StyleSheet.create({
     borderRadius: SIZING.radiusMd,
     paddingHorizontal: 14,
     fontSize: TYPOGRAPHY.body,
+    fontFamily: FONTS.medium,
     color: COLORS.textPrimary,
   },
   stockPickerList: {
     gap: 8,
   },
   stockOption: {
-    minHeight: 58,
+    minHeight: 60,
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
@@ -594,24 +787,111 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: COLORS.border,
     backgroundColor: COLORS.surface,
-    gap: 10,
+    gap: 12,
   },
   stockOptionActive: {
-    borderColor: COLORS.amber,
-    backgroundColor: COLORS.amberLight,
+    borderColor: COLORS.ocean,
+    backgroundColor: COLORS.oceanLight,
   },
   stockOptionTitle: {
     fontSize: TYPOGRAPHY.body,
-    fontWeight: '800',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
   },
   stockOptionSub: {
     fontSize: TYPOGRAPHY.label,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     marginTop: 2,
   },
   customBox: {
+    gap: 10,
+  },
+  sectionHeaderInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 8,
+    marginTop: 4,
+  },
+  manageLinkPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: SIZING.radiusPill,
+    backgroundColor: COLORS.oceanLight,
+  },
+  manageLinkText: {
+    fontSize: 12,
+    fontFamily: FONTS.bold,
+    color: COLORS.ocean,
+  },
+  circlePresetRow: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  circlePresetItem: {
+    width: 66,
+    alignItems: 'center',
+    gap: 6,
+  },
+  circleWell: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: COLORS.surfaceSubtle,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  circleWellActive: {
+    backgroundColor: COLORS.charcoal,
+    borderColor: COLORS.charcoal,
+  },
+  circleWellAdd: {
+    backgroundColor: COLORS.oceanLight,
+    borderColor: COLORS.oceanBorder,
+    borderStyle: 'dashed',
+  },
+  swatchDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: COLORS.surface,
+  },
+  circlePresetLabel: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.textSecondary,
+  },
+  circlePresetLabelActive: {
+    fontFamily: FONTS.extraBold,
+    color: COLORS.textPrimary,
+  },
+  circlePresetAddLabel: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: FONTS.bold,
+    color: COLORS.ocean,
+  },
+  saveQuickDimBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: COLORS.oceanLight,
+    borderRadius: SIZING.radiusPill,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  saveQuickDimText: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: FONTS.bold,
+    color: COLORS.ocean,
   },
   dimRow: {
     flexDirection: 'row',
@@ -623,7 +903,7 @@ const styles = StyleSheet.create({
   },
   dimLabel: {
     fontSize: TYPOGRAPHY.caption,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textSecondary,
   },
   dimInput: {
@@ -634,14 +914,15 @@ const styles = StyleSheet.create({
     borderRadius: SIZING.radiusMd,
     paddingHorizontal: 10,
     fontSize: TYPOGRAPHY.subhead,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
     textAlign: 'center',
+    fontVariant: ['tabular-nums'],
   },
   liveResultBox: {
-    backgroundColor: COLORS.amberLight,
-    borderWidth: 1.5,
-    borderColor: COLORS.amberBorder,
+    backgroundColor: COLORS.navyLight,
+    borderWidth: 1,
+    borderColor: COLORS.navyBorder,
     borderRadius: SIZING.radiusMd,
     padding: 14,
     gap: 6,
@@ -653,28 +934,31 @@ const styles = StyleSheet.create({
   },
   liveLabel: {
     fontSize: TYPOGRAPHY.body,
-    fontWeight: '700',
-    color: COLORS.amberDark,
+    fontFamily: FONTS.bold,
+    color: COLORS.navy,
   },
   liveVolume: {
     fontSize: TYPOGRAPHY.subhead,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
+    fontVariant: ['tabular-nums'],
   },
   livePrice: {
     fontSize: TYPOGRAPHY.amountMd,
-    fontWeight: '800',
-    color: COLORS.amberDark,
+    fontFamily: FONTS.extraBold,
+    color: COLORS.navy,
+    fontVariant: ['tabular-nums'],
   },
   hintMuted: {
     fontSize: TYPOGRAPHY.body,
+    fontFamily: FONTS.regular,
     color: COLORS.textMuted,
     lineHeight: 22,
   },
   cartHeaderVol: {
     fontSize: TYPOGRAPHY.label,
-    fontWeight: '800',
-    color: COLORS.amberDark,
+    fontFamily: FONTS.extraBold,
+    color: COLORS.ocean,
   },
   cartItem: {
     flexDirection: 'row',
@@ -688,50 +972,68 @@ const styles = StyleSheet.create({
   },
   cartItemTitle: {
     fontSize: TYPOGRAPHY.body,
-    fontWeight: '800',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
   },
   cartItemSub: {
     fontSize: TYPOGRAPHY.label,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
   },
   cartItemPrice: {
     fontSize: TYPOGRAPHY.body,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.green,
     marginTop: 2,
+    fontVariant: ['tabular-nums'],
   },
   removeBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: COLORS.redLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  grandTotalBox: {
+  grandSummaryCard: {
+    backgroundColor: COLORS.surfaceSubtle,
+    borderRadius: SIZING.radiusMd,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 14,
+    gap: 8,
+    marginTop: 4,
+  },
+  summaryLine: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: COLORS.textPrimary,
-    borderRadius: SIZING.radiusMd,
-    padding: 14,
-    marginTop: 4,
   },
-  grandLabel: {
-    fontSize: TYPOGRAPHY.caption,
-    color: COLORS.border,
-    fontWeight: '600',
+  summaryKey: {
+    fontSize: TYPOGRAPHY.label,
+    fontFamily: FONTS.medium,
+    color: COLORS.textSecondary,
+  },
+  summaryVal: {
+    fontSize: TYPOGRAPHY.label,
+    fontFamily: FONTS.bold,
+    color: COLORS.textPrimary,
+    fontVariant: ['tabular-nums'],
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: COLORS.borderStrong,
   },
   grandTitle: {
     fontSize: TYPOGRAPHY.body,
-    color: COLORS.textOnDark,
-    fontWeight: '800',
+    color: COLORS.textPrimary,
+    fontFamily: FONTS.extraBold,
   },
   grandAmount: {
     fontSize: TYPOGRAPHY.amountLg,
-    color: COLORS.textOnDark,
-    fontWeight: '800',
+    color: COLORS.navy,
+    fontFamily: FONTS.extraBold,
+    fontVariant: ['tabular-nums'],
   },
   kasbonBox: {
     flexDirection: 'row',
@@ -745,12 +1047,24 @@ const styles = StyleSheet.create({
   },
   kasbonLabel: {
     fontSize: TYPOGRAPHY.body,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.red,
   },
   kasbonVal: {
     fontSize: TYPOGRAPHY.amountMd,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.red,
+    fontVariant: ['tabular-nums'],
+  },
+  offlineReassurance: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  offlineReassuranceText: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.textSecondary,
   },
 });

@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { COLORS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 
 interface EmptyStateProps {
   icon?: React.ReactNode;
@@ -12,7 +12,7 @@ interface EmptyStateProps {
 export function EmptyState({ icon, title, subtitle, action }: EmptyStateProps) {
   return (
     <View style={styles.box}>
-      {icon ? <View style={styles.icon}>{icon}</View> : null}
+      {icon ? <View style={styles.iconWrap}>{icon}</View> : null}
       <Text style={styles.title}>{title}</Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       {action ? <View style={styles.action}>{action}</View> : null}
@@ -23,25 +23,31 @@ export function EmptyState({ icon, title, subtitle, action }: EmptyStateProps) {
 const styles = StyleSheet.create({
   box: {
     backgroundColor: COLORS.surface,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: COLORS.borderStrong,
-    borderRadius: SIZING.radiusLg,
-    padding: 24,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: SIZING.radiusXl,
+    padding: 28,
     alignItems: 'center',
     gap: 8,
   },
-  icon: {
+  iconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: COLORS.surfaceSubtle,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 4,
   },
   title: {
     fontSize: TYPOGRAPHY.subhead,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: TYPOGRAPHY.body,
+    fontFamily: FONTS.regular,
     color: COLORS.textMuted,
     textAlign: 'center',
     lineHeight: 22,

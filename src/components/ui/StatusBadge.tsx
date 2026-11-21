@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { COLORS, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 
 export type BadgeTone = 'green' | 'red' | 'amber' | 'blue' | 'neutral';
 
@@ -11,31 +11,26 @@ interface StatusBadgeProps {
 
 const TONE_COLORS: Record<
   BadgeTone,
-  { bg: string; border: string; text: string }
+  { bg: string; text: string }
 > = {
   green: {
     bg: COLORS.greenLight,
-    border: COLORS.greenBorder,
     text: COLORS.green,
   },
   red: {
     bg: COLORS.redLight,
-    border: COLORS.redBorder,
     text: COLORS.red,
   },
   amber: {
-    bg: COLORS.amberLight,
-    border: COLORS.amberBorder,
-    text: COLORS.amberDark,
+    bg: COLORS.navyLight,
+    text: COLORS.navy,
   },
   blue: {
-    bg: COLORS.blueLight,
-    border: '#93C5FD',
-    text: COLORS.blue,
+    bg: COLORS.oceanLight,
+    text: COLORS.ocean,
   },
   neutral: {
     bg: COLORS.surfaceSubtle,
-    border: COLORS.border,
     text: COLORS.textSecondary,
   },
 };
@@ -43,12 +38,7 @@ const TONE_COLORS: Record<
 export function StatusBadge({ label, tone = 'neutral' }: StatusBadgeProps) {
   const palette = TONE_COLORS[tone];
   return (
-    <View
-      style={[
-        styles.badge,
-        { backgroundColor: palette.bg, borderColor: palette.border },
-      ]}
-    >
+    <View style={[styles.badge, { backgroundColor: palette.bg }]}>
       <Text style={[styles.text, { color: palette.text }]}>{label}</Text>
     </View>
   );
@@ -57,13 +47,12 @@ export function StatusBadge({ label, tone = 'neutral' }: StatusBadgeProps) {
 const styles = StyleSheet.create({
   badge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: SIZING.radiusPill,
   },
   text: {
-    fontSize: TYPOGRAPHY.caption,
-    fontWeight: '800',
+    fontSize: 12,
+    fontFamily: FONTS.bold,
   },
 });

@@ -172,3 +172,21 @@ export async function addManualCashFlow(input: CreateCashFlowInput): Promise<num
     return res.lastInsertRowId;
   });
 }
+
+export async function deleteCashFlow(id: number): Promise<void> {
+  await runInTransaction(async (txn) => {
+    const row = await txn.getFirstAsync<CashFlow>(
+      'SELECT * FROM cash_flows WHERE id = ?',
+      id
+    );
+    if (!row) {
+      throw new Error('Catatan kas tidak ditemukan.');
+    }
+    if (row.reference_id) {
+      throw new Error(
+        'Catatan ini otomatis dari nota atau orderan sehingga tidak dapat dihapus dari Buku Kas.'
+      );
+    }
+    await txn.runAsync('DELETE FROM cash_flows WHERE id = ?', id);
+  });
+}

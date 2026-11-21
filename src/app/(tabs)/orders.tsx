@@ -1,10 +1,11 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -15,7 +16,7 @@ import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { BadgeTone, StatusBadge } from '../../components/ui/StatusBadge';
 import { listFurnitureOrders } from '../../db/ordersRepo';
 import { useAppStore } from '../../store/useAppStore';
-import { COLORS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 import {
   FURNITURE_STATUS_LABELS,
   FurnitureOrder,
@@ -56,16 +57,17 @@ function statusTone(status: FurnitureOrderStatus): BadgeTone {
 export default function OrdersListScreen() {
   const dbRevision = useAppStore((s) => s.dbRevision);
   const [filter, setFilter] = useState<OrderFilter>('ACTIVE');
+  const [search, setSearch] = useState('');
   const [orders, setOrders] = useState<FurnitureOrder[]>([]);
 
   const loadOrders = useCallback(async () => {
     try {
-      const rows = await listFurnitureOrders(filter);
+      const rows = await listFurnitureOrders(filter, search);
       setOrders(rows);
     } catch {
       // ignore transient error
     }
-  }, [filter]);
+  }, [filter, search]);
 
   useFocusEffect(
     useCallback(() => {
@@ -84,10 +86,26 @@ export default function OrdersListScreen() {
           <Text style={styles.title}>Orderan Furniture</Text>
           <PrimaryButton
             title="+ Order Baru"
-            variant="success"
+            variant="ocean"
             onPress={() => router.push('/order/new')}
             style={styles.addBtn}
           />
+        </View>
+
+        <View style={styles.searchBox}>
+          <Feather name="search" size={18} color={COLORS.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Cari pelanggan, barang, atau kode order..."
+            placeholderTextColor={COLORS.textMuted}
+          />
+          {search.length > 0 ? (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <Feather name="x" size={18} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <ChipSelector
@@ -169,19 +187,13 @@ export default function OrdersListScreen() {
         }}
         ListEmptyComponent={
           <EmptyState
-            icon={
-              <MaterialCommunityIcons
-                name="hammer-wrench"
-                size={44}
-                color={COLORS.textMuted}
-              />
-            }
+            icon={<Feather name="layers" size={32} color={COLORS.textMuted} />}
             title="Belum ada orderan furniture"
             subtitle="Catat pesanan kusen, pintu, lemari, atau meja custom beserta DP dan biaya pengerjaannya."
             action={
               <PrimaryButton
                 title="+ Catat Order Furniture"
-                variant="success"
+                variant="ocean"
                 onPress={() => router.push('/order/new')}
               />
             }
@@ -198,9 +210,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
   },
   topSection: {
-    padding: SIZING.spacingMd,
+    padding: 18,
     paddingBottom: 8,
-    gap: 10,
+    gap: 12,
   },
   headerRow: {
     flexDirection: 'row',
@@ -210,24 +222,43 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: TYPOGRAPHY.title,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
   },
   addBtn: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
+  },
+  searchBox: {
+    minHeight: SIZING.inputMinHeight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: SIZING.radiusPill,
+    paddingHorizontal: 16,
+    gap: 10,
+    ...SHADOWS.card,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: FONTS.medium,
+    color: COLORS.textPrimary,
+    paddingVertical: 8,
   },
   listContent: {
-    padding: SIZING.spacingMd,
+    padding: 18,
     paddingTop: 6,
-    gap: 10,
-    paddingBottom: 28,
+    gap: 12,
+    paddingBottom: 104,
   },
   card: {
     backgroundColor: COLORS.surface,
-    borderRadius: SIZING.radiusLg,
+    borderRadius: SIZING.radiusXl,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: SIZING.spacingMd,
+    padding: 18,
     gap: 12,
     ...SHADOWS.card,
   },
@@ -239,18 +270,18 @@ const styles = StyleSheet.create({
   },
   orderCode: {
     fontSize: TYPOGRAPHY.caption,
-    fontWeight: '700',
-    color: COLORS.amberDark,
+    fontFamily: FONTS.bold,
+    color: COLORS.ocean,
   },
   itemName: {
     fontSize: TYPOGRAPHY.subhead,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
   },
   customerName: {
     fontSize: TYPOGRAPHY.body,
     color: COLORS.textSecondary,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
   },
   metricsRow: {
     flexDirection: 'row',
@@ -265,12 +296,13 @@ const styles = StyleSheet.create({
   },
   metricLabel: {
     fontSize: 12,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: COLORS.textMuted,
   },
   metricValue: {
     fontSize: TYPOGRAPHY.label,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
+    fontVariant: ['tabular-nums'],
   },
 });

@@ -104,23 +104,23 @@ export function buildWoodSaleReceiptHtml(
 <head>
 <meta charset="utf-8" />
 <style>
-  body { font-family: Arial, sans-serif; color: #0F172A; padding: 24px; font-size: 13px; }
-  .header { display: flex; justify-content: space-between; border-bottom: 2px solid #B45309; padding-bottom: 12px; margin-bottom: 16px; }
-  .title { font-size: 20px; font-weight: bold; color: #B45309; margin: 0; }
-  .subtitle { font-size: 13px; color: #475569; margin-top: 4px; }
-  .badge { display: inline-block; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 12px; background: ${
-    isPaid ? '#DCFCE7' : '#FEE2E2'
-  }; color: ${isPaid ? '#15803D' : '#B91C1C'}; }
+  body { font-family: Arial, sans-serif; color: #222831; padding: 24px; font-size: 13px; background: #F7F9FB; }
+  .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0A3C6E; padding-bottom: 12px; margin-bottom: 16px; }
+  .title { font-size: 20px; font-weight: bold; color: #0A3C6E; margin: 0; }
+  .subtitle { font-size: 13px; color: #5A6675; margin-top: 4px; }
+  .badge { display: inline-block; padding: 6px 14px; border-radius: 999px; font-weight: bold; font-size: 12px; background: ${
+    isPaid ? '#EAF7EF' : '#FDECEC'
+  }; color: ${isPaid ? '#15803D' : '#C0392B'}; }
   .meta { margin-bottom: 16px; line-height: 1.6; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-  th { background: #F1F5F9; text-align: left; padding: 8px; border-bottom: 2px solid #CBD5E1; font-size: 12px; }
-  td { padding: 8px; border-bottom: 1px solid #E2E8F0; vertical-align: top; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; background: #FFFFFF; }
+  th { background: #EFF3F7; text-align: left; padding: 8px; border-bottom: 2px solid #E6ECF2; font-size: 12px; color: #222831; }
+  td { padding: 8px; border-bottom: 1px solid #EFF3F7; vertical-align: top; }
   .right { text-align: right; }
-  .muted { color: #64748B; font-size: 11px; }
-  .summary { width: 320px; margin-left: auto; border: 1px solid #CBD5E1; border-radius: 8px; padding: 12px; background: #F8FAFC; }
+  .muted { color: #8B97A6; font-size: 11px; }
+  .summary { width: 320px; margin-left: auto; border: 1px solid #E6ECF2; border-radius: 12px; padding: 12px; background: #FFFFFF; }
   .summary-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
-  .summary-total { font-size: 16px; font-weight: bold; border-top: 1px solid #CBD5E1; padding-top: 8px; margin-top: 6px; }
-  .footer { margin-top: 24px; font-size: 11px; color: #64748B; text-align: center; }
+  .summary-total { font-size: 16px; font-weight: bold; border-top: 1px solid #E6ECF2; padding-top: 8px; margin-top: 6px; }
+  .footer { margin-top: 24px; font-size: 11px; color: #8B97A6; text-align: center; }
 </style>
 </head>
 <body>
@@ -176,7 +176,7 @@ export function buildWoodSaleReceiptHtml(
     </div>
     ${
       remaining > 0
-        ? `<div class="summary-row summary-total" style="color: #B91C1C;">
+        ? `<div class="summary-row summary-total" style="color: #C0392B;">
             <span>Kurang Bayar</span>
             <span>${escapeHtml(formatRupiah(remaining))}</span>
           </div>`
@@ -266,19 +266,19 @@ export function buildFurnitureOrderReceiptHtml(
 <head>
 <meta charset="utf-8" />
 <style>
-  body { font-family: Arial, sans-serif; color: #0F172A; padding: 24px; font-size: 13px; }
-  .header { display: flex; justify-content: space-between; border-bottom: 2px solid #B45309; padding-bottom: 12px; margin-bottom: 16px; }
-  .title { font-size: 20px; font-weight: bold; color: #B45309; margin: 0; }
-  .subtitle { font-size: 13px; color: #475569; margin-top: 4px; }
-  .badge { display: inline-block; padding: 6px 12px; border-radius: 6px; font-weight: bold; font-size: 12px; background: ${
-    isPaid ? '#DCFCE7' : '#FEF3C7'
-  }; color: ${isPaid ? '#15803D' : '#92400E'}; }
-  .box { border: 1px solid #CBD5E1; border-radius: 8px; padding: 14px; margin-bottom: 16px; background: #F8FAFC; line-height: 1.7; }
-  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-  th { background: #F1F5F9; text-align: left; padding: 8px; border-bottom: 2px solid #CBD5E1; font-size: 12px; }
-  td { padding: 8px; border-bottom: 1px solid #E2E8F0; }
+  body { font-family: Arial, sans-serif; color: #222831; padding: 24px; font-size: 13px; background: #F7F9FB; }
+  .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0A3C6E; padding-bottom: 12px; margin-bottom: 16px; }
+  .title { font-size: 20px; font-weight: bold; color: #0A3C6E; margin: 0; }
+  .subtitle { font-size: 13px; color: #5A6675; margin-top: 4px; }
+  .badge { display: inline-block; padding: 6px 14px; border-radius: 999px; font-weight: bold; font-size: 12px; background: ${
+    isPaid ? '#EAF7EF' : '#E8F4FC'
+  }; color: ${isPaid ? '#15803D' : '#0A3C6E'}; }
+  .box { border: 1px solid #E6ECF2; border-radius: 12px; padding: 14px; margin-bottom: 16px; background: #FFFFFF; line-height: 1.7; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; background: #FFFFFF; }
+  th { background: #EFF3F7; text-align: left; padding: 8px; border-bottom: 2px solid #E6ECF2; font-size: 12px; color: #222831; }
+  td { padding: 8px; border-bottom: 1px solid #EFF3F7; }
   .right { text-align: right; }
-  .footer { margin-top: 24px; font-size: 11px; color: #64748B; text-align: center; }
+  .footer { margin-top: 24px; font-size: 11px; color: #8B97A6; text-align: center; }
 </style>
 </head>
 <body>
@@ -310,7 +310,7 @@ export function buildFurnitureOrderReceiptHtml(
     <div><strong>Harga Total:</strong> ${escapeHtml(formatRupiah(order.total_price))}</div>
     <div><strong>Sudah Dibayar:</strong> ${escapeHtml(formatRupiah(order.paid_amount))}</div>
     <div><strong>Sisa Tagihan:</strong> <span style="color:${
-      remaining > 0 ? '#B91C1C' : '#15803D'
+      remaining > 0 ? '#C0392B' : '#15803D'
     };font-weight:bold;">${escapeHtml(formatRupiah(remaining))}</span></div>
   </div>
 

@@ -1,7 +1,6 @@
 import {
   AdjustStockInput,
   CreateWoodStockInput,
-  WOOD_TYPE_PRESETS,
   WoodStock,
 } from '../types/domain';
 import { calculateItemSubtotal, calculateVolumeM3 } from '../utils/cubicCalculator';
@@ -19,18 +18,18 @@ export async function listWoodStocks(woodTypeFilter?: string): Promise<WoodStock
   }
 
   if (woodTypeFilter === 'Lainnya') {
-    const placeholders = WOOD_TYPE_PRESETS.map(() => '?').join(', ');
     return db.getAllAsync<WoodStock>(
       `SELECT * FROM wood_stocks
-       WHERE wood_type NOT IN (${placeholders})
-       ORDER BY wood_type ASC, thickness_cm ASC, width_cm ASC, length_cm ASC`,
-      ...WOOD_TYPE_PRESETS
+       WHERE LOWER(TRIM(wood_type)) NOT IN (
+         SELECT LOWER(TRIM(name)) FROM wood_types
+       )
+       ORDER BY wood_type ASC, thickness_cm ASC, width_cm ASC, length_cm ASC`
     );
   }
 
   return db.getAllAsync<WoodStock>(
     `SELECT * FROM wood_stocks
-     WHERE wood_type = ?
+     WHERE LOWER(TRIM(wood_type)) = LOWER(TRIM(?))
      ORDER BY thickness_cm ASC, width_cm ASC, length_cm ASC`,
     woodTypeFilter
   );
@@ -54,6 +53,7 @@ export async function addOrRestockWood(input: CreateWoodStockInput): Promise<num
   }
 
   const now = getLocalTimestampIso();
+  const supplierName = (input.supplierName ?? '').trim();
 
   return runInTransaction(async (txn) => {
     const existing = await txn.getFirstAsync<WoodStock>(
@@ -77,11 +77,13 @@ export async function addOrRestockWood(input: CreateWoodStockInput): Promise<num
          SET stock_qty = ?,
              buy_price_m3 = ?,
              sell_price_m3 = ?,
+             last_supplier_name = ?,
              updated_at = ?
          WHERE id = ?`,
         nextQty,
         input.buyPriceM3 > 0 ? input.buyPriceM3 : existing.buy_price_m3,
         input.sellPriceM3 > 0 ? input.sellPriceM3 : existing.sell_price_m3,
+        supplierName || existing.last_supplier_name || '',
         now,
         existing.id
       );
@@ -89,8 +91,8 @@ export async function addOrRestockWood(input: CreateWoodStockInput): Promise<num
     } else {
       const insertRes = await txn.runAsync(
         `INSERT INTO wood_stocks
-          (wood_type, length_cm, width_cm, thickness_cm, stock_qty, buy_price_m3, sell_price_m3, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          (wood_type, length_cm, width_cm, thickness_cm, stock_qty, buy_price_m3, sell_price_m3, last_supplier_name, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         woodType,
         input.lengthCm,
         input.widthCm,
@@ -98,6 +100,7 @@ export async function addOrRestockWood(input: CreateWoodStockInput): Promise<num
         input.stockQty,
         Math.max(0, input.buyPriceM3),
         Math.max(0, input.sellPriceM3),
+        supplierName,
         now
       );
       stockId = insertRes.lastInsertRowId;
@@ -116,7 +119,7 @@ export async function addOrRestockWood(input: CreateWoodStockInput): Promise<num
           input.lengthCm,
           input.widthCm,
           input.thicknessCm
-        )}) ${input.stockQty} btg`;
+        )}) ${input.stockQty} btg${supplierName ? ` • dari ${supplierName}` : ''}`;
         await txn.runAsync(
           `INSERT INTO cash_flows (type, category, amount, description, reference_id, created_at)
            VALUES ('OUT', 'MATERIAL_BUY', ?, ?, ?, ?)`,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { COLORS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 
 interface SectionCardProps {
   title?: string;
@@ -31,11 +31,11 @@ export function SectionCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.surface,
-    borderRadius: SIZING.radiusLg,
+    borderRadius: SIZING.radiusXl,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: SIZING.spacingMd,
-    gap: 10,
+    padding: 18,
+    gap: 12,
     ...SHADOWS.card,
   },
   headerRow: {
@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: TYPOGRAPHY.subhead,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
   },
 });

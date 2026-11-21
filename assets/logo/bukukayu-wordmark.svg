@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 104" fill="none">
+  <!-- App Icon Mark -->
+  <rect x="4" y="4" width="96" height="96" rx="26" fill="#0A3C6E"/>
+  <path d="M23 31C23 28.2386 25.2386 26 28 26H49C50.6569 26 52 27.3431 52 29V77C52 75.3431 50.2091 74 48 74H28C25.2386 74 23 71.7614 23 69V31Z" fill="#FFFFFF"/>
+  <path d="M81 31C81 28.2386 78.7614 26 76 26H55C53.3431 26 52 27.3431 52 29V77C52 75.3431 53.7909 74 56 74H76C78.7614 74 81 71.7614 81 69V31Z" fill="#EAF2FA"/>
+  <rect x="50.8" y="27" width="2.4" height="49" rx="1.2" fill="#0A3C6E"/>
+  <rect x="30" y="38" width="15" height="3.2" rx="1.6" fill="#0A3C6E"/>
+  <rect x="30" y="47" width="12" height="3.2" rx="1.6" fill="#1783C1"/>
+  <rect x="30" y="56" width="15" height="3.2" rx="1.6" fill="#333333"/>
+  <path d="M60 40C64 37.5 69 37.5 74 40" stroke="#0A3C6E" stroke-width="2.8" stroke-linecap="round"/>
+  <path d="M60 50C64 47 69 47 74 50" stroke="#1783C1" stroke-width="2.8" stroke-linecap="round"/>
+  <path d="M60 60C64 57.5 69 57.5 74 60" stroke="#0A3C6E" stroke-width="2.8" stroke-linecap="round"/>
+  <!-- Typography Lockup -->
+  <text x="120" y="53" font-family="Plus Jakarta Sans, Segoe UI, Arial, sans-serif" font-size="34" font-weight="800" fill="#333333" letter-spacing="-0.8">Buku<tspan fill="#0A3C6E">Kayu</tspan></text>
+  <text x="121" y="77" font-family="Plus Jakarta Sans, Segoe UI, Arial, sans-serif" font-size="14" font-weight="600" fill="#1783C1" letter-spacing="0.4">Pembukuan Bengkel Kayu &amp; Mebel</text>
+</svg>

@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { COLORS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 
 interface NumberStepperProps {
   label?: string;
@@ -26,13 +26,11 @@ export function NumberStepper({
   unitLabel = 'Batang',
 }: NumberStepperProps) {
   const handleDecrement = () => {
-    const next = Math.max(min, value - 1);
-    onChange(next);
+    onChange(Math.max(min, value - 1));
   };
 
   const handleIncrement = () => {
-    const next = Math.min(max, value + 1);
-    onChange(next);
+    onChange(Math.min(max, value + 1));
   };
 
   const handleTextChange = (raw: string) => {
@@ -50,7 +48,7 @@ export function NumberStepper({
   return (
     <View style={styles.wrapper}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
-      <View style={styles.row}>
+      <View style={styles.pillContainer}>
         <TouchableOpacity
           activeOpacity={0.75}
           onPress={handleDecrement}
@@ -76,12 +74,12 @@ export function NumberStepper({
         <TouchableOpacity
           activeOpacity={0.75}
           onPress={handleIncrement}
-          style={[styles.btn, value >= max && styles.btnDisabled]}
+          style={[styles.btn, styles.btnPrimary, value >= max && styles.btnDisabled]}
           disabled={value >= max}
           accessibilityRole="button"
           accessibilityLabel="Tambah"
         >
-          <Text style={styles.btnText}>+</Text>
+          <Text style={[styles.btnText, { color: COLORS.textOnDark }]}>+</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -94,54 +92,59 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: TYPOGRAPHY.label,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
   },
-  row: {
+  pillContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    backgroundColor: COLORS.surfaceSubtle,
+    borderRadius: SIZING.radiusPill,
+    padding: 4,
+    gap: 6,
   },
   btn: {
-    width: 54,
-    height: 54,
-    borderRadius: SIZING.radiusMd,
-    backgroundColor: COLORS.amber,
+    width: 48,
+    height: 48,
+    borderRadius: SIZING.radiusPill,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  btnPrimary: {
+    backgroundColor: COLORS.navy,
+    borderColor: COLORS.navy,
   },
   btnDisabled: {
     opacity: 0.4,
   },
   btnText: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: COLORS.textOnDark,
-    lineHeight: 32,
+    fontSize: 24,
+    fontFamily: FONTS.bold,
+    color: COLORS.textPrimary,
+    lineHeight: 28,
   },
   centerBox: {
     flex: 1,
-    minHeight: 54,
+    minHeight: 46,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.surface,
-    borderWidth: 1.5,
-    borderColor: COLORS.borderStrong,
-    borderRadius: SIZING.radiusMd,
-    paddingHorizontal: 12,
     gap: 6,
   },
   input: {
-    minWidth: 50,
+    minWidth: 44,
     fontSize: TYPOGRAPHY.heading,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
-    paddingVertical: 6,
+    paddingVertical: 4,
+    fontVariant: ['tabular-nums'],
   },
   unit: {
     fontSize: TYPOGRAPHY.label,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: COLORS.textMuted,
   },
 });

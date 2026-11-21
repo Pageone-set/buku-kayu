@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
@@ -177,6 +178,23 @@ export default function BackupSettingsScreen() {
           />
         </SectionCard>
 
+        <SectionCard title="Master Kayu, Harga Pasar & Pemasok">
+          <Text style={styles.bodyText}>
+            Atur daftar jenis kayu, perbarui harga beli/jual mengikuti harga
+            pasar, kelola ukuran standar, dan catat daftar asal pemasok kayu.
+          </Text>
+          <PrimaryButton
+            title="Buka Menu Jenis Kayu, Harga & Ukuran"
+            variant="ocean"
+            onPress={() => router.push('/settings/wood-presets')}
+          />
+          <PrimaryButton
+            title="Buka Menu Asal & Pemasok Kayu"
+            variant="outline"
+            onPress={() => router.push('/settings/suppliers')}
+          />
+        </SectionCard>
+
         <SectionCard title="Akun Google Drive Pribadi">
           {googleUser ? (
             <View style={{ gap: 10 }}>
@@ -316,8 +334,8 @@ export default function BackupSettingsScreen() {
             <Switch
               value={autoBackupWifi}
               onValueChange={(v) => void handleToggleWifiAutoBackup(v)}
-              trackColor={{ false: COLORS.border, true: COLORS.amberBorder }}
-              thumbColor={autoBackupWifi ? COLORS.amber : '#F4F4F5'}
+              trackColor={{ false: COLORS.border, true: COLORS.oceanBorder }}
+              thumbColor={autoBackupWifi ? COLORS.ocean : '#F4F4F5'}
             />
           </View>
         </SectionCard>
@@ -326,7 +344,7 @@ export default function BackupSettingsScreen() {
           <MaterialCommunityIcons
             name="information-outline"
             size={20}
-            color={COLORS.amberDark}
+            color={COLORS.navy}
           />
           <Text style={styles.infoNoteText}>
             Login Google Drive berjalan di aplikasi Android Development Build /
@@ -464,14 +482,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: COLORS.amberLight,
+    backgroundColor: COLORS.navyLight,
     borderRadius: SIZING.radiusMd,
     padding: 12,
   },
   infoNoteText: {
     flex: 1,
     fontSize: TYPOGRAPHY.caption,
-    color: COLORS.amberDark,
+    color: COLORS.navy,
     lineHeight: 19,
     fontWeight: '600',
   },

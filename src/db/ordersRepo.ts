@@ -28,29 +28,38 @@ function mapCostCategoryToCashFlow(category: FurnitureCostCategory): CashFlowCat
 }
 
 export async function listFurnitureOrders(
-  filter: 'ACTIVE' | 'ALL' | FurnitureOrderStatus = 'ACTIVE'
+  filter: 'ACTIVE' | 'ALL' | FurnitureOrderStatus = 'ACTIVE',
+  search = ''
 ): Promise<FurnitureOrder[]> {
   const db = await getDatabase();
-
-  if (filter === 'ALL') {
-    return db.getAllAsync<FurnitureOrder>(
-      'SELECT * FROM furniture_orders ORDER BY created_at DESC, id DESC'
-    );
-  }
+  const conditions: string[] = [];
+  const params: string[] = [];
 
   if (filter === 'ACTIVE') {
-    return db.getAllAsync<FurnitureOrder>(
-      `SELECT * FROM furniture_orders
-       WHERE status != 'COMPLETED'
-       ORDER BY deadline_date ASC, created_at DESC`
-    );
+    conditions.push("status != 'COMPLETED'");
+  } else if (filter !== 'ALL') {
+    conditions.push('status = ?');
+    params.push(filter);
   }
 
+  const trimmed = search.trim();
+  if (trimmed) {
+    conditions.push(
+      '(customer_name LIKE ? OR item_name LIKE ? OR order_code LIKE ?)'
+    );
+    params.push(`%${trimmed}%`, `%${trimmed}%`, `%${trimmed}%`);
+  }
+
+  const whereClause =
+    conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const orderBy =
+    filter === 'ALL'
+      ? 'ORDER BY created_at DESC, id DESC'
+      : 'ORDER BY deadline_date ASC, created_at DESC';
+
   return db.getAllAsync<FurnitureOrder>(
-    `SELECT * FROM furniture_orders
-     WHERE status = ?
-     ORDER BY deadline_date ASC, created_at DESC`,
-    filter
+    `SELECT * FROM furniture_orders ${whereClause} ${orderBy}`,
+    ...params
   );
 }
 

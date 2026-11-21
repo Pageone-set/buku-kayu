@@ -1,7 +1,7 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { COLORS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 import {
   FURNITURE_STATUS_STEPS,
   FurnitureOrderStatus,
@@ -37,7 +37,7 @@ export function OrderStatusStepper({
           return (
             <TouchableOpacity
               key={step.key}
-              activeOpacity={0.75}
+              activeOpacity={0.78}
               disabled={updating || step.key === currentStatus}
               onPress={() => onSelectStatus(step.key)}
               style={[
@@ -54,11 +54,7 @@ export function OrderStatusStepper({
                 ]}
               >
                 {isDone ? (
-                  <MaterialCommunityIcons
-                    name="check"
-                    size={16}
-                    color={COLORS.textOnDark}
-                  />
+                  <Feather name="check" size={15} color={COLORS.textOnDark} />
                 ) : (
                   <Text
                     style={[
@@ -96,16 +92,10 @@ export function OrderStatusStepper({
       {nextStep ? (
         <PrimaryButton
           title={`Lanjut ke: ${nextStep.label}`}
-          variant={nextStep.key === 'COMPLETED' ? 'success' : 'primary'}
+          variant={nextStep.key === 'COMPLETED' ? 'success' : 'ocean'}
           loading={updating}
           onPress={() => onSelectStatus(nextStep.key)}
-          icon={
-            <MaterialCommunityIcons
-              name="arrow-right-circle-outline"
-              size={22}
-              color={COLORS.textOnDark}
-            />
-          }
+          icon={<Feather name="arrow-right" size={19} color={COLORS.textOnDark} />}
         />
       ) : null}
     </View>
@@ -120,29 +110,29 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   stepRow: {
-    minHeight: 50,
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: SIZING.radiusMd,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.surface,
     gap: 12,
   },
   stepRowCurrent: {
-    borderColor: COLORS.amber,
-    backgroundColor: COLORS.amberLight,
+    borderColor: COLORS.ocean,
+    backgroundColor: COLORS.oceanLight,
   },
   stepRowDone: {
     borderColor: COLORS.greenBorder,
     backgroundColor: COLORS.greenLight,
   },
   dot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: COLORS.surfaceSubtle,
     borderWidth: 1,
     borderColor: COLORS.borderStrong,
@@ -154,40 +144,41 @@ const styles = StyleSheet.create({
     borderColor: COLORS.green,
   },
   dotCurrent: {
-    backgroundColor: COLORS.amber,
-    borderColor: COLORS.amber,
+    backgroundColor: COLORS.ocean,
+    borderColor: COLORS.ocean,
   },
   dotText: {
     fontSize: TYPOGRAPHY.caption,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textSecondary,
   },
   stepLabel: {
     flex: 1,
     fontSize: TYPOGRAPHY.body,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: COLORS.textSecondary,
   },
   stepLabelCurrent: {
-    fontWeight: '800',
-    color: COLORS.amberDark,
+    fontFamily: FONTS.extraBold,
+    color: COLORS.navy,
   },
   stepLabelDone: {
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.green,
   },
   activeTag: {
     fontSize: TYPOGRAPHY.caption,
-    fontWeight: '800',
-    color: COLORS.amberDark,
+    fontFamily: FONTS.extraBold,
+    color: COLORS.navy,
   },
   doneTag: {
     fontSize: TYPOGRAPHY.caption,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.green,
   },
   tapHint: {
     fontSize: TYPOGRAPHY.caption,
+    fontFamily: FONTS.medium,
     color: COLORS.textMuted,
   },
 });

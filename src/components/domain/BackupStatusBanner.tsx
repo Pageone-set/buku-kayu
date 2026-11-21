@@ -1,10 +1,10 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { performManualBackup } from '../../services/driveBackup';
 import { useAppStore } from '../../store/useAppStore';
-import { COLORS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 import { formatBackupRelativeTime } from '../../utils/formatters';
 import { PrimaryButton } from '../ui/PrimaryButton';
 
@@ -34,25 +34,30 @@ export function BackupStatusBanner() {
   return (
     <View style={styles.card}>
       <TouchableOpacity
-        activeOpacity={0.75}
+        activeOpacity={0.78}
         onPress={() => router.push('/settings/backup')}
         style={styles.topRow}
       >
-        <View style={styles.iconWrap}>
-          <MaterialCommunityIcons
-            name={googleUser ? 'cloud-check-outline' : 'cloud-off-outline'}
-            size={24}
-            color={googleUser ? COLORS.green : COLORS.amberDark}
+        <View
+          style={[
+            styles.iconWrap,
+            googleUser ? styles.iconConnected : styles.iconDisconnected,
+          ]}
+        >
+          <Feather
+            name={googleUser ? 'cloud' : 'cloud-off'}
+            size={21}
+            color={googleUser ? COLORS.green : COLORS.ocean}
           />
         </View>
         <View style={styles.info}>
-          <Text style={styles.title}>
+          <Text style={styles.title} numberOfLines={1}>
             {googleUser
-              ? `Google Drive: ${googleUser.email}`
-              : 'Cadangkan Data ke Google Drive'}
+              ? `Drive: ${googleUser.email}`
+              : 'Cadangkan ke Google Drive'}
           </Text>
           <Text style={styles.subtitle}>
-            Terakhir dicadangkan: {formatBackupRelativeTime(lastBackupAt)}
+            Terakhir: {formatBackupRelativeTime(lastBackupAt)}
           </Text>
           {hasPendingChanges && googleUser ? (
             <Text style={styles.pendingText}>
@@ -60,11 +65,7 @@ export function BackupStatusBanner() {
             </Text>
           ) : null}
         </View>
-        <MaterialCommunityIcons
-          name="chevron-right"
-          size={24}
-          color={COLORS.textMuted}
-        />
+        <Feather name="chevron-right" size={20} color={COLORS.textMuted} />
       </TouchableOpacity>
 
       {googleUser ? (
@@ -74,11 +75,7 @@ export function BackupStatusBanner() {
           loading={isBusy}
           onPress={handleBackupNow}
           icon={
-            <MaterialCommunityIcons
-              name="cloud-upload-outline"
-              size={20}
-              color={COLORS.textPrimary}
-            />
+            <Feather name="upload-cloud" size={18} color={COLORS.textPrimary} />
           }
         />
       ) : (
@@ -86,13 +83,7 @@ export function BackupStatusBanner() {
           title="Hubungkan Google Drive"
           variant="outline"
           onPress={() => router.push('/settings/backup')}
-          icon={
-            <MaterialCommunityIcons
-              name="google"
-              size={20}
-              color={COLORS.textPrimary}
-            />
-          }
+          icon={<Feather name="cloud" size={18} color={COLORS.ocean} />}
         />
       )}
     </View>
@@ -102,10 +93,10 @@ export function BackupStatusBanner() {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.surface,
-    borderRadius: SIZING.radiusLg,
+    borderRadius: SIZING.radiusXl,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: SIZING.spacingMd,
+    padding: 18,
     gap: 12,
     ...SHADOWS.card,
   },
@@ -115,12 +106,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: COLORS.surfaceSubtle,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  iconConnected: {
+    backgroundColor: COLORS.greenLight,
+  },
+  iconDisconnected: {
+    backgroundColor: COLORS.oceanLight,
   },
   info: {
     flex: 1,
@@ -128,17 +124,18 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: TYPOGRAPHY.body,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
   },
   subtitle: {
     fontSize: TYPOGRAPHY.label,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
   },
   pendingText: {
     fontSize: TYPOGRAPHY.caption,
-    fontWeight: '700',
-    color: COLORS.amberDark,
+    fontFamily: FONTS.bold,
+    color: COLORS.navy,
     marginTop: 2,
   },
 });

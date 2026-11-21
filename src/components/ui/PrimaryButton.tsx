@@ -7,9 +7,15 @@ import {
   TouchableOpacity,
   ViewStyle,
 } from 'react-native';
-import { COLORS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 
-export type ButtonVariant = 'primary' | 'success' | 'danger' | 'outline' | 'ghost';
+export type ButtonVariant =
+  | 'primary'
+  | 'ocean'
+  | 'success'
+  | 'danger'
+  | 'outline'
+  | 'ghost';
 
 interface PrimaryButtonProps {
   title: string;
@@ -39,10 +45,14 @@ export function PrimaryButton({
     styles.base,
     { minHeight },
     variant === 'primary' && styles.primary,
+    variant === 'ocean' && styles.ocean,
     variant === 'success' && styles.success,
     variant === 'danger' && styles.danger,
     variant === 'outline' && styles.outline,
     variant === 'ghost' && styles.ghost,
+    size === 'lg' &&
+      (variant === 'primary' || variant === 'ocean') &&
+      SHADOWS.floating,
     isDisabled && styles.disabled,
     style,
   ];
@@ -52,7 +62,7 @@ export function PrimaryButton({
 
   return (
     <TouchableOpacity
-      activeOpacity={0.8}
+      activeOpacity={0.82}
       onPress={onPress}
       disabled={isDisabled}
       style={containerStyle}
@@ -67,7 +77,7 @@ export function PrimaryButton({
             style={[
               styles.label,
               size === 'lg' && styles.labelLg,
-              { color: variant === 'ghost' ? COLORS.amber : textColor },
+              { color: variant === 'ghost' ? COLORS.ocean : textColor },
             ]}
           >
             {title}
@@ -84,12 +94,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: SIZING.radiusMd,
+    borderRadius: SIZING.radiusPill,
   },
   primary: {
-    backgroundColor: COLORS.amber,
+    backgroundColor: COLORS.navy,
+  },
+  ocean: {
+    backgroundColor: COLORS.ocean,
   },
   success: {
     backgroundColor: COLORS.green,
@@ -99,21 +112,22 @@ const styles = StyleSheet.create({
   },
   outline: {
     backgroundColor: COLORS.surface,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: COLORS.borderStrong,
   },
   ghost: {
     backgroundColor: 'transparent',
   },
   disabled: {
-    opacity: 0.5,
+    opacity: 0.48,
   },
   label: {
     fontSize: TYPOGRAPHY.body,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     textAlign: 'center',
   },
   labelLg: {
     fontSize: TYPOGRAPHY.subhead,
+    fontFamily: FONTS.extraBold,
   },
 });

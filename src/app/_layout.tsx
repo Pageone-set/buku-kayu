@@ -1,3 +1,11 @@
+import {
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+  useFonts,
+} from '@expo-google-fonts/plus-jakarta-sans';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect } from 'react';
@@ -15,9 +23,17 @@ import {
   trySilentGoogleSignIn,
 } from '../services/googleDriveService';
 import { useAppStore } from '../store/useAppStore';
-import { COLORS, TYPOGRAPHY } from '../theme/tokens';
+import { COLORS, FONTS, TYPOGRAPHY } from '../theme/tokens';
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+  });
+
   const isDbReady = useAppStore((s) => s.isDbReady);
   const dbError = useAppStore((s) => s.dbError);
   const setDbReady = useAppStore((s) => s.setDbReady);
@@ -87,11 +103,11 @@ export default function RootLayout() {
     );
   }
 
-  if (!isDbReady) {
+  if (!isDbReady || (!fontsLoaded && !fontError)) {
     return (
       <SafeAreaProvider>
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={COLORS.amber} />
+          <ActivityIndicator size="large" color={COLORS.navy} />
           <Text style={styles.loadingTitle}>Membuka BukuKayu...</Text>
           <Text style={styles.loadingSub}>Menyiapkan catatan bengkel</Text>
         </View>
@@ -104,10 +120,10 @@ export default function RootLayout() {
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: COLORS.surface },
+          headerStyle: { backgroundColor: COLORS.bg },
           headerTintColor: COLORS.textPrimary,
-          headerTitleStyle: { fontWeight: '800', fontSize: 18 },
-          headerShadowVisible: true,
+          headerTitleStyle: { fontFamily: FONTS.extraBold, fontSize: 18 },
+          headerShadowVisible: false,
           contentStyle: { backgroundColor: COLORS.bg },
         }}
       >
@@ -132,6 +148,14 @@ export default function RootLayout() {
           name="settings/backup"
           options={{ title: 'Cadangkan & Pengaturan' }}
         />
+        <Stack.Screen
+          name="settings/wood-presets"
+          options={{ title: 'Jenis Kayu & Ukuran' }}
+        />
+        <Stack.Screen
+          name="settings/suppliers"
+          options={{ title: 'Asal & Pemasok Kayu' }}
+        />
       </Stack>
     </SafeAreaProvider>
   );
@@ -148,22 +172,24 @@ const styles = StyleSheet.create({
   },
   loadingTitle: {
     fontSize: TYPOGRAPHY.heading,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
     marginTop: 8,
   },
   loadingSub: {
     fontSize: TYPOGRAPHY.body,
+    fontFamily: FONTS.regular,
     color: COLORS.textMuted,
   },
   errorTitle: {
     fontSize: TYPOGRAPHY.heading,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.red,
     textAlign: 'center',
   },
   errorDesc: {
     fontSize: TYPOGRAPHY.body,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     textAlign: 'center',
     marginBottom: 8,

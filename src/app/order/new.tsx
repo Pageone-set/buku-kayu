@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -16,7 +16,7 @@ import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { SectionCard } from '../../components/ui/SectionCard';
 import { createFurnitureOrder } from '../../db/ordersRepo';
 import { useAppStore } from '../../store/useAppStore';
-import { COLORS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 import { calculateRemainingAmount } from '../../utils/cubicCalculator';
 import {
   formatDateIndo,
@@ -184,16 +184,10 @@ export default function NewFurnitureOrderScreen() {
         <PrimaryButton
           title="Simpan Orderan Furniture"
           size="lg"
-          variant="success"
+          variant="ocean"
           loading={saving}
           onPress={() => void handleSave()}
-          icon={
-            <MaterialCommunityIcons
-              name="content-save-check"
-              size={24}
-              color={COLORS.textOnDark}
-            />
-          }
+          icon={<Feather name="check" size={20} color={COLORS.textOnDark} />}
         />
       </ScrollView>
     </SafeAreaView>
@@ -212,24 +206,25 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: TYPOGRAPHY.label,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
     marginTop: 4,
   },
   textInput: {
     minHeight: SIZING.inputMinHeight,
     backgroundColor: COLORS.surface,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: COLORS.borderStrong,
     borderRadius: SIZING.radiusMd,
     paddingHorizontal: 14,
     fontSize: TYPOGRAPHY.body,
+    fontFamily: FONTS.medium,
     color: COLORS.textPrimary,
   },
   helperText: {
     fontSize: TYPOGRAPHY.caption,
-    fontWeight: '600',
-    color: COLORS.amberDark,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.ocean,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -241,11 +236,12 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: TYPOGRAPHY.body,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textSecondary,
   },
   summaryVal: {
     fontSize: TYPOGRAPHY.amountMd,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
+    fontVariant: ['tabular-nums'],
   },
 });

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <rect width="128" height="128" rx="32" fill="#0A3C6E"/>
+  <rect x="8" y="8" width="112" height="112" rx="26" stroke="#1783C1" stroke-opacity="0.35" stroke-width="1.5"/>
+  <!-- Left open ledger page -->
+  <path d="M26 37C26 33.6863 28.6863 31 32 31H60C62.2091 31 64 32.7909 64 35V95C64 92.7909 61.7614 91 59 91H32C28.6863 91 26 88.3137 26 85V37Z" fill="#FFFFFF"/>
+  <!-- Right timber beam / ledger page -->
+  <path d="M102 37C102 33.6863 99.3137 31 96 31H68C65.7909 31 64 32.7909 64 35V95C64 92.7909 66.2386 91 69 91H96C99.3137 91 102 88.3137 102 85V37Z" fill="#EAF2FA"/>
+  <!-- Center spine -->
+  <rect x="62.5" y="32" width="3" height="62" rx="1.5" fill="#0A3C6E"/>
+  <!-- Minimal ledger lines on left -->
+  <rect x="35" y="45" width="20" height="4" rx="2" fill="#0A3C6E"/>
+  <rect x="35" y="56" width="16" height="4" rx="2" fill="#1783C1"/>
+  <rect x="35" y="67" width="20" height="4" rx="2" fill="#333333"/>
+  <!-- Minimal wood end-grain rings on right -->
+  <path d="M74 47C79 44 86 44 92 47" stroke="#0A3C6E" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M74 60C79 56 86 56 92 60" stroke="#1783C1" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M74 73C79 70 86 70 92 73" stroke="#0A3C6E" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

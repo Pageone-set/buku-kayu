@@ -17,7 +17,7 @@ import { SectionCard } from '../../components/ui/SectionCard';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { addWoodSalePayment, getWoodSaleDetail } from '../../db/salesRepo';
 import { useAppStore } from '../../store/useAppStore';
-import { COLORS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 import { WoodSaleDetail } from '../../types/domain';
 import { calculateRemainingAmount } from '../../utils/cubicCalculator';
 import {
@@ -349,16 +349,17 @@ const styles = StyleSheet.create({
   },
   invoiceNo: {
     fontSize: TYPOGRAPHY.label,
-    fontWeight: '800',
-    color: COLORS.amberDark,
+    fontFamily: FONTS.extraBold,
+    color: COLORS.ocean,
   },
   buyerName: {
     fontSize: TYPOGRAPHY.title,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
   },
   metaText: {
     fontSize: TYPOGRAPHY.label,
+    fontFamily: FONTS.regular,
     color: COLORS.textMuted,
   },
   amountSummary: {
@@ -374,13 +375,14 @@ const styles = StyleSheet.create({
   },
   amountLabel: {
     fontSize: TYPOGRAPHY.body,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: COLORS.textSecondary,
   },
   amountVal: {
     fontSize: TYPOGRAPHY.subhead,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
+    fontVariant: ['tabular-nums'],
   },
   remainingRow: {
     borderTopWidth: 1,
@@ -389,8 +391,9 @@ const styles = StyleSheet.create({
   },
   remainingVal: {
     fontSize: TYPOGRAPHY.amountMd,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.red,
+    fontVariant: ['tabular-nums'],
   },
   notesText: {
     fontSize: TYPOGRAPHY.body,
@@ -441,7 +444,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'flex-end',
   },
   modalSheet: {

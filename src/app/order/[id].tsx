@@ -488,8 +488,8 @@ export default function FurnitureOrderDetailScreen() {
               <Switch
                 value={recordCostInCash}
                 onValueChange={setRecordCostInCash}
-                trackColor={{ false: COLORS.border, true: COLORS.amberBorder }}
-                thumbColor={recordCostInCash ? COLORS.amber : '#F4F4F5'}
+                trackColor={{ false: COLORS.border, true: COLORS.oceanBorder }}
+                thumbColor={recordCostInCash ? COLORS.ocean : '#F4F4F5'}
               />
             </View>
 
@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
   orderCode: {
     fontSize: TYPOGRAPHY.label,
     fontWeight: '800',
-    color: COLORS.amberDark,
+    color: COLORS.ocean,
   },
   itemTitle: {
     fontSize: TYPOGRAPHY.title,
@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'flex-end',
   },
   modalSheet: {

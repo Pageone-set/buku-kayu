@@ -1,6 +1,6 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -8,10 +8,12 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChipSelector } from '../../components/ui/ChipSelector';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MoneyInput } from '../../components/ui/MoneyInput';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
@@ -19,10 +21,11 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import {
   CashFlowPeriod,
   addManualCashFlow,
+  deleteCashFlow,
   listCashFlows,
 } from '../../db/cashFlowRepo';
 import { useAppStore } from '../../store/useAppStore';
-import { COLORS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 import {
   CASH_FLOW_CATEGORY_LABELS,
   CashFlow,
@@ -72,6 +75,7 @@ export default function CashFlowScreen() {
 
   const [period, setPeriod] = useState<CashFlowPeriod>('TODAY');
   const [typeFilter, setTypeFilter] = useState<'ALL' | CashFlowType>('ALL');
+  const [search, setSearch] = useState('');
   const [rows, setRows] = useState<CashFlow[]>([]);
   const [summary, setSummary] = useState<CashFlowSummary>(INITIAL_SUMMARY);
 
@@ -81,6 +85,7 @@ export default function CashFlowScreen() {
     useState<CashFlowCategory>('OPERATIONAL');
   const [entryAmount, setEntryAmount] = useState(0);
   const [entryDesc, setEntryDesc] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<CashFlow | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const loadCashFlows = useCallback(async () => {
@@ -105,6 +110,19 @@ export default function CashFlowScreen() {
   useEffect(() => {
     void loadCashFlows();
   }, [dbRevision, loadCashFlows]);
+
+  const visibleRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) {
+      return rows;
+    }
+    return rows.filter(
+      (r) =>
+        r.description.toLowerCase().includes(q) ||
+        r.reference_id.toLowerCase().includes(q) ||
+        CASH_FLOW_CATEGORY_LABELS[r.category].toLowerCase().includes(q)
+    );
+  }, [rows, search]);
 
   const openNewEntryModal = () => {
     setEntryType('OUT');
@@ -136,6 +154,26 @@ export default function CashFlowScreen() {
     }
   };
 
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await deleteCashFlow(deleteTarget.id);
+      setDeleteTarget(null);
+      bumpDbRevision(true);
+      await loadCashFlows();
+    } catch (error) {
+      Alert.alert(
+        'Gagal Menghapus',
+        error instanceof Error ? error.message : 'Tidak bisa menghapus catatan ini.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.topSection}>
@@ -143,7 +181,7 @@ export default function CashFlowScreen() {
           <Text style={styles.title}>Buku Kas Harian</Text>
           <PrimaryButton
             title="+ Catat Kas"
-            variant="danger"
+            variant="primary"
             onPress={openNewEntryModal}
             style={styles.addBtn}
           />
@@ -170,7 +208,7 @@ export default function CashFlowScreen() {
             </Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { fontWeight: '800' }]}>
+            <Text style={[styles.summaryLabel, { fontFamily: FONTS.extraBold }]}>
               Sisa Bersih Usaha
             </Text>
             <Text
@@ -192,13 +230,29 @@ export default function CashFlowScreen() {
             </Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { fontWeight: '800' }]}>
+            <Text style={[styles.summaryLabel, { fontFamily: FONTS.extraBold }]}>
               Sisa Uang di Kas
             </Text>
             <Text style={styles.cashBalanceVal}>
               {formatRupiah(summary.cashBalance)}
             </Text>
           </View>
+        </View>
+
+        <View style={styles.searchBox}>
+          <Feather name="search" size={18} color={COLORS.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Cari keterangan kas..."
+            placeholderTextColor={COLORS.textMuted}
+          />
+          {search.length > 0 ? (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <Feather name="x" size={18} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <ChipSelector
@@ -209,12 +263,13 @@ export default function CashFlowScreen() {
       </View>
 
       <FlatList
-        data={rows}
+        data={visibleRows}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => {
           const isIn = item.type === 'IN';
           const isPrive = item.category === 'PERSONAL_DRAW';
+          const isManual = !item.reference_id;
 
           return (
             <View style={styles.entryCard}>
@@ -234,26 +289,33 @@ export default function CashFlowScreen() {
                 </Text>
               </View>
 
-              <Text
-                style={[
-                  styles.entryAmt,
-                  { color: isIn ? COLORS.green : COLORS.red },
-                ]}
-              >
-                {isIn ? '+' : '-'}
-                {formatRupiah(item.amount)}
-              </Text>
+              <View style={styles.entryRight}>
+                <Text
+                  style={[
+                    styles.entryAmt,
+                    { color: isIn ? COLORS.green : COLORS.red },
+                  ]}
+                >
+                  {isIn ? '+' : '-'}
+                  {formatRupiah(item.amount)}
+                </Text>
+                {isManual ? (
+                  <TouchableOpacity
+                    onPress={() => setDeleteTarget(item)}
+                    style={styles.deletePill}
+                    accessibilityLabel="Hapus catatan kas"
+                  >
+                    <Feather name="trash-2" size={15} color={COLORS.red} />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             </View>
           );
         }}
         ListEmptyComponent={
           <EmptyState
             icon={
-              <MaterialCommunityIcons
-                name="cash-multiple"
-                size={44}
-                color={COLORS.textMuted}
-              />
+              <Feather name="credit-card" size={32} color={COLORS.textMuted} />
             }
             title="Belum ada catatan uang masuk/keluar"
             subtitle="Semua penjualan kayu, pembayaran orderan, kulakan stok, upah tukang, dan ambil pribadi akan muncul di sini."
@@ -337,6 +399,23 @@ export default function CashFlowScreen() {
           </View>
         </View>
       </Modal>
+
+      <ConfirmModal
+        visible={deleteTarget !== null}
+        title="Hapus Catatan Kas Ini?"
+        message={
+          deleteTarget
+            ? `Catatan "${deleteTarget.description}" (${formatRupiah(
+                deleteTarget.amount
+              )}) akan dihapus permanen.`
+            : ''
+        }
+        confirmLabel="Ya, Hapus"
+        danger
+        loading={submitting}
+        onConfirm={() => void handleConfirmDelete()}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -347,9 +426,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
   },
   topSection: {
-    padding: SIZING.spacingMd,
+    padding: 18,
     paddingBottom: 8,
-    gap: 10,
+    gap: 12,
   },
   headerRow: {
     flexDirection: 'row',
@@ -359,15 +438,15 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: TYPOGRAPHY.title,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
   },
   addBtn: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
   },
   summaryCard: {
     backgroundColor: COLORS.surface,
-    borderRadius: SIZING.radiusLg,
+    borderRadius: SIZING.radiusXl,
     borderWidth: 1,
     borderColor: COLORS.border,
     padding: 14,
@@ -382,11 +461,12 @@ const styles = StyleSheet.create({
   summaryLabel: {
     fontSize: TYPOGRAPHY.label,
     color: COLORS.textSecondary,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
   },
   summaryVal: {
     fontSize: TYPOGRAPHY.body,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
+    fontVariant: ['tabular-nums'],
   },
   divider: {
     height: 1,
@@ -395,31 +475,52 @@ const styles = StyleSheet.create({
   },
   priveLabel: {
     fontSize: TYPOGRAPHY.label,
-    color: COLORS.amberDark,
-    fontWeight: '700',
+    color: COLORS.ocean,
+    fontFamily: FONTS.bold,
   },
   priveVal: {
     fontSize: TYPOGRAPHY.body,
-    color: COLORS.amberDark,
-    fontWeight: '800',
+    color: COLORS.ocean,
+    fontFamily: FONTS.extraBold,
+    fontVariant: ['tabular-nums'],
   },
   cashBalanceVal: {
     fontSize: TYPOGRAPHY.subhead,
+    color: COLORS.navy,
+    fontFamily: FONTS.extraBold,
+    fontVariant: ['tabular-nums'],
+  },
+  searchBox: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: SIZING.radiusPill,
+    paddingHorizontal: 16,
+    gap: 10,
+    ...SHADOWS.card,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.label,
+    fontFamily: FONTS.medium,
     color: COLORS.textPrimary,
-    fontWeight: '800',
+    paddingVertical: 6,
   },
   listContent: {
-    padding: SIZING.spacingMd,
+    padding: 18,
     paddingTop: 6,
-    gap: 10,
-    paddingBottom: 28,
+    gap: 12,
+    paddingBottom: 104,
   },
   entryCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.surface,
-    borderRadius: SIZING.radiusMd,
+    borderRadius: SIZING.radiusLg,
     borderWidth: 1,
     borderColor: COLORS.border,
     padding: 14,
@@ -434,42 +535,56 @@ const styles = StyleSheet.create({
   },
   refText: {
     fontSize: TYPOGRAPHY.caption,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textMuted,
   },
   entryDesc: {
     fontSize: TYPOGRAPHY.body,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
   },
   entryTime: {
     fontSize: TYPOGRAPHY.caption,
+    fontFamily: FONTS.regular,
     color: COLORS.textMuted,
+  },
+  entryRight: {
+    alignItems: 'flex-end',
+    gap: 6,
   },
   entryAmt: {
     fontSize: TYPOGRAPHY.subhead,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
+    fontVariant: ['tabular-nums'],
+  },
+  deletePill: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.redLight,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
     backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 20,
     gap: 12,
   },
   modalTitle: {
     fontSize: TYPOGRAPHY.heading,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
   },
   fieldLabel: {
     fontSize: TYPOGRAPHY.label,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
   },
   textInput: {
@@ -480,6 +595,7 @@ const styles = StyleSheet.create({
     borderRadius: SIZING.radiusMd,
     paddingHorizontal: 14,
     fontSize: TYPOGRAPHY.body,
+    fontFamily: FONTS.medium,
     color: COLORS.textPrimary,
   },
   modalActions: {

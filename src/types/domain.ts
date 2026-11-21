@@ -9,6 +9,7 @@ export interface WoodStock {
   stock_qty: number;
   buy_price_m3: number;
   sell_price_m3: number;
+  last_supplier_name?: string;
   updated_at: string;
 }
 
@@ -20,6 +21,7 @@ export interface CreateWoodStockInput {
   stockQty: number;
   buyPriceM3: number;
   sellPriceM3: number;
+  supplierName?: string;
   recordCashOut?: boolean;
 }
 
@@ -213,10 +215,89 @@ export interface GoogleUserProfile {
 
 export const WOOD_TYPE_PRESETS = ['Jati', 'Mahoni', 'Sengon', 'Kamper'] as const;
 
+export interface WoodTypePreset {
+  id: number;
+  name: string;
+  color_hex: string;
+  default_buy_price_m3: number;
+  default_price_m3: number;
+  price_updated_at: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface SaveWoodTypeInput {
+  name: string;
+  colorHex: string;
+  defaultBuyPriceM3?: number;
+  defaultPriceM3: number;
+}
+
+export interface UpdateWoodMarketPriceInput {
+  id: number;
+  buyPriceM3: number;
+  sellPriceM3: number;
+  syncToStocks?: boolean;
+}
+
+export interface WoodSupplier {
+  id: number;
+  supplier_name: string;
+  location: string;
+  phone: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WoodSupplierPrice {
+  id: number;
+  supplier_id: number;
+  wood_type: string;
+  buy_price_m3: number;
+  unit_note: string;
+  updated_at: string;
+}
+
+export interface WoodSupplierWithPrices extends WoodSupplier {
+  items: WoodSupplierPrice[];
+}
+
+export interface SaveWoodSupplierItemInput {
+  woodType: string;
+  buyPriceM3: number;
+  unitNote?: string;
+}
+
+export interface SaveWoodSupplierInput {
+  supplierName: string;
+  location?: string;
+  phone?: string;
+  notes?: string;
+  items: SaveWoodSupplierItemInput[];
+}
+
 export interface DimensionPreset {
   label: string;
   thicknessCm: number;
   widthCm: number;
+}
+
+export interface WoodDimensionPreset {
+  id: number;
+  label: string;
+  thickness_cm: number;
+  width_cm: number;
+  default_length_cm: number;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface SaveWoodDimensionInput {
+  label?: string;
+  thicknessCm: number;
+  widthCm: number;
+  defaultLengthCm: number;
 }
 
 export const DIMENSION_PRESETS: readonly DimensionPreset[] = [

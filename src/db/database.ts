@@ -2,7 +2,7 @@ import * as SQLite from 'expo-sqlite';
 import { getLocalTimestampIso } from '../utils/formatters';
 
 export const DB_NAME = 'bukukayu.db';
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 3;
 
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -131,6 +131,216 @@ async function seedInitialData(db: SQLite.SQLiteDatabase): Promise<void> {
   });
 }
 
+async function ensureColumnExists(
+  txn: SQLite.SQLiteDatabase,
+  table: string,
+  column: string,
+  definition: string
+): Promise<void> {
+  const columns = await txn.getAllAsync<{ name: string }>(
+    `PRAGMA table_info(${table})`
+  );
+  if (!columns.some((col) => col.name === column)) {
+    await txn.execAsync(
+      `ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`
+    );
+  }
+}
+
+async function seedMarketPricesAndSuppliersIfNeeded(
+  db: SQLite.SQLiteDatabase
+): Promise<void> {
+  const now = getLocalTimestampIso();
+
+  const starterBuyPrices: Record<string, number> = {
+    jati: 9500000,
+    mahoni: 4200000,
+    sengon: 2100000,
+    kamper: 6800000,
+  };
+
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    const existingTypes = await txn.getAllAsync<{
+      id: number;
+      name: string;
+      default_buy_price_m3: number;
+      price_updated_at: string;
+    }>(
+      'SELECT id, name, default_buy_price_m3, price_updated_at FROM wood_types'
+    );
+
+    for (const row of existingTypes) {
+      const key = row.name.trim().toLowerCase();
+      const starterBuy = starterBuyPrices[key];
+      const nextBuy =
+        row.default_buy_price_m3 === 0 && starterBuy
+          ? starterBuy
+          : row.default_buy_price_m3;
+      const nextUpdated = row.price_updated_at || now;
+      if (
+        nextBuy !== row.default_buy_price_m3 ||
+        nextUpdated !== row.price_updated_at
+      ) {
+        await txn.runAsync(
+          `UPDATE wood_types
+           SET default_buy_price_m3 = ?, price_updated_at = ?
+           WHERE id = ?`,
+          nextBuy,
+          nextUpdated,
+          row.id
+        );
+      }
+    }
+
+    const seededRow = await txn.getFirstAsync<{ value: string }>(
+      'SELECT value FROM app_settings WHERE key = ?',
+      'seeded_suppliers_v3'
+    );
+    if (seededRow?.value === '1') {
+      return;
+    }
+
+    const supplierCount = await txn.getFirstAsync<{ cnt: number }>(
+      'SELECT COUNT(*) AS cnt FROM wood_suppliers'
+    );
+    if ((supplierCount?.cnt ?? 0) === 0) {
+      const sup1 = await txn.runAsync(
+        `INSERT INTO wood_suppliers (supplier_name, location, phone, notes, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        'Sawmill Pak Karno',
+        'Blora, Jawa Tengah',
+        '',
+        'Kayu balok kering, bisa kirim truk',
+        now,
+        now
+      );
+      await txn.runAsync(
+        `INSERT INTO wood_supplier_prices (supplier_id, wood_type, buy_price_m3, unit_note, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        sup1.lastInsertRowId,
+        'Jati',
+        9500000,
+        'Balok 6×12 & 8×12',
+        now
+      );
+      await txn.runAsync(
+        `INSERT INTO wood_supplier_prices (supplier_id, wood_type, buy_price_m3, unit_note, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        sup1.lastInsertRowId,
+        'Kamper',
+        6800000,
+        'Balok 6×12',
+        now
+      );
+
+      const sup2 = await txn.runAsync(
+        `INSERT INTO wood_suppliers (supplier_name, location, phone, notes, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        'UD Rimba Mandiri',
+        'Temanggung, Jawa Tengah',
+        '',
+        'Terima borongan papan & sengon',
+        now,
+        now
+      );
+      await txn.runAsync(
+        `INSERT INTO wood_supplier_prices (supplier_id, wood_type, buy_price_m3, unit_note, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        sup2.lastInsertRowId,
+        'Mahoni',
+        4200000,
+        'Balok 5×10 & Papan 2×20',
+        now
+      );
+      await txn.runAsync(
+        `INSERT INTO wood_supplier_prices (supplier_id, wood_type, buy_price_m3, unit_note, updated_at)
+         VALUES (?, ?, ?, ?, ?)`,
+        sup2.lastInsertRowId,
+        'Sengon',
+        2100000,
+        'Papan 2×20',
+        now
+      );
+    }
+
+    await txn.runAsync(
+      'INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)',
+      'seeded_suppliers_v3',
+      '1'
+    );
+  });
+}
+
+async function seedWoodPresetsIfNeeded(
+  db: SQLite.SQLiteDatabase
+): Promise<void> {
+  const now = getLocalTimestampIso();
+  const seededRow = await db.getFirstAsync<{ value: string }>(
+    'SELECT value FROM app_settings WHERE key = ?',
+    'seeded_presets_v2'
+  );
+  if (seededRow?.value === '1') {
+    return;
+  }
+
+  const starterWoodTypes = [
+    { name: 'Jati', colorHex: '#8B5A2B', defaultPriceM3: 12000000, sortOrder: 1 },
+    { name: 'Mahoni', colorHex: '#7A3528', defaultPriceM3: 5500000, sortOrder: 2 },
+    { name: 'Sengon', colorHex: '#D7BC91', defaultPriceM3: 2800000, sortOrder: 3 },
+    { name: 'Kamper', colorHex: '#B57C4A', defaultPriceM3: 8500000, sortOrder: 4 },
+  ];
+
+  const starterDimensions = [
+    { label: '6×12', thicknessCm: 6, widthCm: 12, defaultLengthCm: 400, sortOrder: 1 },
+    { label: '8×12', thicknessCm: 8, widthCm: 12, defaultLengthCm: 400, sortOrder: 2 },
+    { label: '5×10', thicknessCm: 5, widthCm: 10, defaultLengthCm: 400, sortOrder: 3 },
+    { label: '2×20 (Papan)', thicknessCm: 2, widthCm: 20, defaultLengthCm: 400, sortOrder: 4 },
+  ];
+
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    const typeCnt = await txn.getFirstAsync<{ cnt: number }>(
+      'SELECT COUNT(*) AS cnt FROM wood_types'
+    );
+    if ((typeCnt?.cnt ?? 0) === 0) {
+      for (const item of starterWoodTypes) {
+        await txn.runAsync(
+          `INSERT INTO wood_types (name, color_hex, default_price_m3, sort_order, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+          item.name,
+          item.colorHex,
+          item.defaultPriceM3,
+          item.sortOrder,
+          now
+        );
+      }
+    }
+
+    const dimCnt = await txn.getFirstAsync<{ cnt: number }>(
+      'SELECT COUNT(*) AS cnt FROM wood_dimensions'
+    );
+    if ((dimCnt?.cnt ?? 0) === 0) {
+      for (const dim of starterDimensions) {
+        await txn.runAsync(
+          `INSERT INTO wood_dimensions (label, thickness_cm, width_cm, default_length_cm, sort_order, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          dim.label,
+          dim.thicknessCm,
+          dim.widthCm,
+          dim.defaultLengthCm,
+          dim.sortOrder,
+          now
+        );
+      }
+    }
+
+    await txn.runAsync(
+      'INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)',
+      'seeded_presets_v2',
+      '1'
+    );
+  });
+}
+
 async function migrateIfNeeded(db: SQLite.SQLiteDatabase): Promise<void> {
   const versionRow = await db.getFirstAsync<{ user_version: number }>(
     'PRAGMA user_version'
@@ -252,12 +462,95 @@ async function migrateIfNeeded(db: SQLite.SQLiteDatabase): Promise<void> {
         CREATE INDEX IF NOT EXISTS idx_cash_flows_created_at ON cash_flows(created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_cash_flows_type ON cash_flows(type);
 
+        PRAGMA user_version = 1;
+      `);
+    });
+  }
+
+  if (currentVersion < 2) {
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      await txn.execAsync(`
+        PRAGMA foreign_keys = ON;
+
+        CREATE TABLE IF NOT EXISTS wood_types (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+          color_hex TEXT NOT NULL DEFAULT '#8B5A2B',
+          default_price_m3 REAL NOT NULL DEFAULT 0,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS wood_dimensions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          label TEXT NOT NULL,
+          thickness_cm REAL NOT NULL,
+          width_cm REAL NOT NULL,
+          default_length_cm REAL NOT NULL DEFAULT 400,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL
+        );
+
+        PRAGMA user_version = 2;
+      `);
+    });
+  }
+
+  if (currentVersion < 3) {
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      await ensureColumnExists(
+        txn,
+        'wood_types',
+        'default_buy_price_m3',
+        'REAL NOT NULL DEFAULT 0'
+      );
+      await ensureColumnExists(
+        txn,
+        'wood_types',
+        'price_updated_at',
+        "TEXT NOT NULL DEFAULT ''"
+      );
+      await ensureColumnExists(
+        txn,
+        'wood_stocks',
+        'last_supplier_name',
+        "TEXT NOT NULL DEFAULT ''"
+      );
+
+      await txn.execAsync(`
+        PRAGMA foreign_keys = ON;
+
+        CREATE TABLE IF NOT EXISTS wood_suppliers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          supplier_name TEXT NOT NULL,
+          location TEXT NOT NULL DEFAULT '',
+          phone TEXT NOT NULL DEFAULT '',
+          notes TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS wood_supplier_prices (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          supplier_id INTEGER NOT NULL,
+          wood_type TEXT NOT NULL,
+          buy_price_m3 REAL NOT NULL DEFAULT 0,
+          unit_note TEXT NOT NULL DEFAULT '',
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (supplier_id) REFERENCES wood_suppliers(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_wood_supplier_prices_supplier_id ON wood_supplier_prices(supplier_id);
+        CREATE INDEX IF NOT EXISTS idx_wood_supplier_prices_wood_type ON wood_supplier_prices(wood_type);
+
         PRAGMA user_version = ${SCHEMA_VERSION};
       `);
     });
   }
 
   await seedInitialData(db);
+  await seedWoodPresetsIfNeeded(db);
+  await seedMarketPricesAndSuppliersIfNeeded(db);
 }
 
 export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {

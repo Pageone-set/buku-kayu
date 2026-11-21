@@ -1,5 +1,5 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -10,43 +10,42 @@ import {
   Switch,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChipSelector } from '../../components/ui/ChipSelector';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { DimensionSpecStrip } from '../../components/ui/DimensionSpecStrip';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MoneyInput } from '../../components/ui/MoneyInput';
 import { NumberStepper } from '../../components/ui/NumberStepper';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { StatusBadge } from '../../components/ui/StatusBadge';
+import { WoodSwatchBadge } from '../../components/ui/WoodSwatchBadge';
 import {
   addOrRestockWood,
   adjustWoodStock,
+  deleteWoodStock,
   listWoodStocks,
 } from '../../db/stockRepo';
+import { listWoodSuppliers } from '../../db/suppliersRepo';
+import { listWoodDimensions, listWoodTypes } from '../../db/woodPresetsRepo';
 import { useAppStore } from '../../store/useAppStore';
-import { COLORS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 import {
-  DIMENSION_PRESETS,
   LENGTH_PRESETS_CM,
-  WOOD_TYPE_PRESETS,
+  WoodDimensionPreset,
   WoodStock,
+  WoodSupplierWithPrices,
+  WoodTypePreset,
 } from '../../types/domain';
 import { calculateVolumeM3 } from '../../utils/cubicCalculator';
 import {
-  formatDimension,
   formatRupiah,
   formatVolumeM3,
 } from '../../utils/formatters';
-
-const FILTER_TABS = [
-  { label: 'Semua', value: 'Semua' },
-  { label: 'Jati', value: 'Jati' },
-  { label: 'Mahoni', value: 'Mahoni' },
-  { label: 'Sengon', value: 'Sengon' },
-  { label: 'Kamper', value: 'Kamper' },
-  { label: 'Lainnya', value: 'Lainnya' },
-] as const;
+import { formatDimensionNumber } from '../../utils/woodPresetHelpers';
 
 export default function StockScreen() {
   const dbRevision = useAppStore((s) => s.dbRevision);
@@ -54,6 +53,9 @@ export default function StockScreen() {
 
   const [filter, setFilter] = useState<string>('Semua');
   const [stocks, setStocks] = useState<WoodStock[]>([]);
+  const [woodTypes, setWoodTypes] = useState<WoodTypePreset[]>([]);
+  const [dimensions, setDimensions] = useState<WoodDimensionPreset[]>([]);
+  const [suppliers, setSuppliers] = useState<WoodSupplierWithPrices[]>([]);
 
   const [newModalOpen, setNewModalOpen] = useState(false);
   const [woodType, setWoodType] = useState('Jati');
@@ -63,6 +65,7 @@ export default function StockScreen() {
   const [stockQty, setStockQty] = useState(10);
   const [buyPriceM3, setBuyPriceM3] = useState(9000000);
   const [sellPriceM3, setSellPriceM3] = useState(11500000);
+  const [supplierName, setSupplierName] = useState('');
   const [recordCashOut, setRecordCashOut] = useState(true);
 
   const [adjustTarget, setAdjustTarget] = useState<WoodStock | null>(null);
@@ -71,13 +74,22 @@ export default function StockScreen() {
   const [adjustBuyPrice, setAdjustBuyPrice] = useState(0);
   const [adjustSellPrice, setAdjustSellPrice] = useState(0);
   const [adjustCashOut, setAdjustCashOut] = useState(true);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
 
   const loadStocks = useCallback(async () => {
     try {
-      const rows = await listWoodStocks(filter);
+      const [rows, types, dims, supplierRows] = await Promise.all([
+        listWoodStocks(filter),
+        listWoodTypes(),
+        listWoodDimensions(),
+        listWoodSuppliers(),
+      ]);
       setStocks(rows);
+      setWoodTypes(types);
+      setDimensions(dims);
+      setSuppliers(supplierRows);
     } catch {
       // ignore
     }
@@ -92,6 +104,31 @@ export default function StockScreen() {
   useEffect(() => {
     void loadStocks();
   }, [dbRevision, loadStocks]);
+
+  const filterTabs = useMemo(() => {
+    return [
+      { label: 'Semua', value: 'Semua' },
+      ...woodTypes.map((w) => ({ label: w.name, value: w.name })),
+      { label: 'Lainnya', value: 'Lainnya' },
+    ];
+  }, [woodTypes]);
+
+  useEffect(() => {
+    if (
+      woodTypes.length > 0 &&
+      !filterTabs.some((t) => t.value === filter)
+    ) {
+      setFilter('Semua');
+    }
+  }, [filter, filterTabs, woodTypes.length]);
+
+  const woodColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const w of woodTypes) {
+      map.set(w.name.trim().toLowerCase(), w.color_hex);
+    }
+    return map;
+  }, [woodTypes]);
 
   const totals = useMemo(() => {
     let totalBatang = 0;
@@ -126,9 +163,11 @@ export default function StockScreen() {
         stockQty,
         buyPriceM3,
         sellPriceM3,
+        supplierName,
         recordCashOut,
       });
       setNewModalOpen(false);
+      setSupplierName('');
       bumpDbRevision(true);
       await loadStocks();
     } catch (error) {
@@ -177,11 +216,32 @@ export default function StockScreen() {
     }
   };
 
+  const handleDeleteStock = async () => {
+    if (!adjustTarget) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await deleteWoodStock(adjustTarget.id);
+      setDeleteConfirmOpen(false);
+      setAdjustTarget(null);
+      bumpDbRevision(true);
+      await loadStocks();
+    } catch (error) {
+      Alert.alert(
+        'Gagal Hapus Stok',
+        error instanceof Error ? error.message : 'Tidak bisa menghapus stok ini.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.topSection}>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>Stok Balok & Papan</Text>
+          <Text style={styles.title}>Stok Balok &amp; Papan</Text>
           <PrimaryButton
             title="+ Kulakan"
             onPress={() => setNewModalOpen(true)}
@@ -198,8 +258,29 @@ export default function StockScreen() {
           </View>
         </View>
 
+        <View style={styles.shortcutRow}>
+          <TouchableOpacity
+            activeOpacity={0.78}
+            onPress={() => router.push('/settings/wood-presets')}
+            style={styles.presetShortcutBtn}
+          >
+            <Feather name="sliders" size={14} color={COLORS.navy} />
+            <Text style={styles.presetShortcutText}>Harga &amp; Ukuran</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.78}
+            onPress={() => router.push('/settings/suppliers')}
+            style={styles.presetShortcutBtn}
+          >
+            <Feather name="map-pin" size={14} color={COLORS.ocean} />
+            <Text style={[styles.presetShortcutText, { color: COLORS.ocean }]}>
+              Asal &amp; Pemasok Kayu
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <ChipSelector
-          options={FILTER_TABS}
+          options={filterTabs}
           value={filter}
           onChange={setFilter}
           scrollable
@@ -222,24 +303,31 @@ export default function StockScreen() {
           return (
             <View style={styles.card}>
               <View style={styles.cardTop}>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={styles.woodTitle}>{item.wood_type}</Text>
-                  <Text style={styles.dimText}>
-                    {formatDimension(
-                      item.length_cm,
-                      item.width_cm,
-                      item.thickness_cm
+                <View style={styles.woodIdentity}>
+                  <WoodSwatchBadge
+                    woodType={item.wood_type}
+                    colorHex={woodColorMap.get(
+                      item.wood_type.trim().toLowerCase()
                     )}
-                  </Text>
-                </View>
-                <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                  <StatusBadge
-                    label={`${item.stock_qty} Batang`}
-                    tone={isLow ? 'red' : 'green'}
+                    size={20}
                   />
-                  <Text style={styles.volText}>{formatVolumeM3(vol)}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.woodTitle}>{item.wood_type}</Text>
+                    <Text style={styles.volText}>{formatVolumeM3(vol)}</Text>
+                  </View>
                 </View>
+                <StatusBadge
+                  label={`${item.stock_qty} Batang`}
+                  tone={isLow ? 'red' : 'green'}
+                />
               </View>
+
+              <DimensionSpecStrip
+                lengthCm={item.length_cm}
+                widthCm={item.width_cm}
+                thicknessCm={item.thickness_cm}
+                compact
+              />
 
               <View style={styles.priceRow}>
                 <Text style={styles.priceText}>
@@ -249,6 +337,15 @@ export default function StockScreen() {
                   Jual: {formatRupiah(item.sell_price_m3)}/m³
                 </Text>
               </View>
+
+              {item.last_supplier_name ? (
+                <View style={styles.supplierTag}>
+                  <Feather name="map-pin" size={12} color={COLORS.ocean} />
+                  <Text style={styles.supplierTagText}>
+                    Asal terakhir: {item.last_supplier_name}
+                  </Text>
+                </View>
+              ) : null}
 
               <View style={styles.cardActions}>
                 <PrimaryButton
@@ -269,13 +366,7 @@ export default function StockScreen() {
         }}
         ListEmptyComponent={
           <EmptyState
-            icon={
-              <MaterialCommunityIcons
-                name="pine-tree"
-                size={44}
-                color={COLORS.textMuted}
-              />
-            }
+            icon={<Feather name="box" size={32} color={COLORS.textMuted} />}
             title="Belum ada stok untuk jenis kayu ini"
             subtitle="Tambahkan stok balok atau papan baru agar mudah dipilih saat mencatat penjualan."
             action={
@@ -299,17 +390,38 @@ export default function StockScreen() {
             <ScrollView contentContainerStyle={{ gap: 10 }}>
               <Text style={styles.modalTitle}>Tambah Stok / Kulakan Baru</Text>
 
-              <Text style={styles.fieldLabel}>Jenis Kayu</Text>
+              <View style={styles.modalLabelRow}>
+                <Text style={styles.fieldLabel}>Jenis Kayu</Text>
+                <TouchableOpacity
+                  activeOpacity={0.78}
+                  onPress={() => {
+                    setNewModalOpen(false);
+                    router.push('/settings/wood-presets?tab=wood');
+                  }}
+                >
+                  <Text style={styles.modalManageLink}>Atur / + Tambah</Text>
+                </TouchableOpacity>
+              </View>
               <ChipSelector
-                options={WOOD_TYPE_PRESETS.map((w) => ({ label: w, value: w }))}
+                options={woodTypes.map((w) => ({ label: w.name, value: w.name }))}
                 value={
-                  WOOD_TYPE_PRESETS.includes(
-                    woodType as (typeof WOOD_TYPE_PRESETS)[number]
-                  )
-                    ? woodType
-                    : ''
+                  woodTypes.find(
+                    (w) => w.name.toLowerCase() === woodType.trim().toLowerCase()
+                  )?.name ?? ''
                 }
-                onChange={setWoodType}
+                onChange={(name) => {
+                  setWoodType(name);
+                  const found = woodTypes.find((w) => w.name === name);
+                  if (found) {
+                    if (found.default_buy_price_m3 > 0) {
+                      setBuyPriceM3(found.default_buy_price_m3);
+                    }
+                    if (found.default_price_m3 > 0) {
+                      setSellPriceM3(found.default_price_m3);
+                    }
+                  }
+                }}
+                scrollable
               />
               <TextInput
                 style={styles.textInput}
@@ -319,20 +431,87 @@ export default function StockScreen() {
                 placeholderTextColor={COLORS.textMuted}
               />
 
-              <Text style={styles.fieldLabel}>Ukuran Cepat (Tebal × Lebar cm)</Text>
+              <View style={styles.modalLabelRow}>
+                <Text style={styles.fieldLabel}>
+                  Dapat Kayu Dari Mana (Opsional)
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.78}
+                  onPress={() => {
+                    setNewModalOpen(false);
+                    router.push('/settings/suppliers');
+                  }}
+                >
+                  <Text style={styles.modalManageLink}>Atur Pemasok</Text>
+                </TouchableOpacity>
+              </View>
+              {suppliers.length > 0 ? (
+                <ChipSelector
+                  options={suppliers.map((s) => ({
+                    label: s.supplier_name,
+                    value: s.supplier_name,
+                  }))}
+                  value={supplierName}
+                  onChange={(name) => {
+                    setSupplierName(name);
+                    const pickedSupplier = suppliers.find(
+                      (s) => s.supplier_name === name
+                    );
+                    const matchedWood = pickedSupplier?.items.find(
+                      (it) =>
+                        it.wood_type.trim().toLowerCase() ===
+                        woodType.trim().toLowerCase()
+                    );
+                    if (matchedWood && matchedWood.buy_price_m3 > 0) {
+                      setBuyPriceM3(matchedWood.buy_price_m3);
+                    }
+                  }}
+                  scrollable
+                />
+              ) : null}
+              <TextInput
+                style={styles.textInput}
+                value={supplierName}
+                onChangeText={setSupplierName}
+                placeholder="Ketik nama pemasok / sawmill / asal kayu..."
+                placeholderTextColor={COLORS.textMuted}
+              />
+
+              <View style={styles.modalLabelRow}>
+                <Text style={styles.fieldLabel}>
+                  Ukuran Cepat (Tebal × Lebar cm)
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.78}
+                  onPress={() => {
+                    setNewModalOpen(false);
+                    router.push('/settings/wood-presets?tab=size');
+                  }}
+                >
+                  <Text style={styles.modalManageLink}>Atur Ukuran</Text>
+                </TouchableOpacity>
+              </View>
               <ChipSelector
-                options={DIMENSION_PRESETS.map((d) => ({
+                options={dimensions.map((d) => ({
                   label: d.label,
-                  value: `${d.thicknessCm}x${d.widthCm}`,
+                  value: `${formatDimensionNumber(d.thickness_cm)}x${formatDimensionNumber(
+                    d.width_cm
+                  )}x${formatDimensionNumber(d.default_length_cm)}`,
                 }))}
-                value={`${Number.parseFloat(thicknessCm) || 0}x${
+                value={`${formatDimensionNumber(
+                  Number.parseFloat(thicknessCm) || 0
+                )}x${formatDimensionNumber(
                   Number.parseFloat(widthCm) || 0
-                }`}
+                )}x${formatDimensionNumber(Number.parseFloat(lengthCm) || 0)}`}
                 onChange={(val) => {
-                  const [t, w] = val.split('x');
+                  const [t, w, l] = val.split('x');
                   setThicknessCm(t);
                   setWidthCm(w);
+                  if (l) {
+                    setLengthCm(l);
+                  }
                 }}
+                scrollable
               />
 
               <Text style={styles.fieldLabel}>Panjang Cepat (cm)</Text>
@@ -403,8 +582,8 @@ export default function StockScreen() {
                 <Switch
                   value={recordCashOut}
                   onValueChange={setRecordCashOut}
-                  trackColor={{ false: COLORS.border, true: COLORS.amberBorder }}
-                  thumbColor={recordCashOut ? COLORS.amber : '#F4F4F5'}
+                  trackColor={{ false: COLORS.border, true: COLORS.oceanBorder }}
+                  thumbColor={recordCashOut ? COLORS.ocean : '#F4F4F5'}
                 />
               </View>
 
@@ -438,18 +617,12 @@ export default function StockScreen() {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalSheet}>
             {adjustTarget ? (
-              <View style={{ gap: 10 }}>
+              <ScrollView contentContainerStyle={{ gap: 10 }}>
                 <Text style={styles.modalTitle}>
                   {adjustMode === 'ADD' ? 'Kulakan Tambah Stok' : 'Sesuaikan Stok'}
                 </Text>
                 <Text style={styles.dimText}>
-                  {adjustTarget.wood_type} •{' '}
-                  {formatDimension(
-                    adjustTarget.length_cm,
-                    adjustTarget.width_cm,
-                    adjustTarget.thickness_cm
-                  )}{' '}
-                  (Saat ini: {adjustTarget.stock_qty} btg)
+                  {adjustTarget.wood_type} • Saat ini: {adjustTarget.stock_qty} batang
                 </Text>
 
                 <ChipSelector
@@ -502,8 +675,8 @@ export default function StockScreen() {
                     <Switch
                       value={adjustCashOut}
                       onValueChange={setAdjustCashOut}
-                      trackColor={{ false: COLORS.border, true: COLORS.amberBorder }}
-                      thumbColor={adjustCashOut ? COLORS.amber : '#F4F4F5'}
+                      trackColor={{ false: COLORS.border, true: COLORS.oceanBorder }}
+                      thumbColor={adjustCashOut ? COLORS.ocean : '#F4F4F5'}
                     />
                   </View>
                 ) : null}
@@ -524,11 +697,29 @@ export default function StockScreen() {
                     style={{ flex: 1 }}
                   />
                 </View>
-              </View>
+
+                <PrimaryButton
+                  title="Hapus Ukuran Stok Ini"
+                  variant="ghost"
+                  onPress={() => setDeleteConfirmOpen(true)}
+                  disabled={submitting}
+                />
+              </ScrollView>
             ) : null}
           </View>
         </View>
       </Modal>
+
+      <ConfirmModal
+        visible={deleteConfirmOpen}
+        title="Hapus Data Stok Ini?"
+        message="Data ukuran kayu ini akan dihapus dari daftar stok gudang. Riwayat nota yang sudah ada tetap aman."
+        confirmLabel="Ya, Hapus"
+        danger
+        loading={submitting}
+        onConfirm={() => void handleDeleteStock()}
+        onCancel={() => setDeleteConfirmOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -539,9 +730,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
   },
   topSection: {
-    padding: SIZING.spacingMd,
+    padding: 18,
     paddingBottom: 8,
-    gap: 10,
+    gap: 12,
   },
   headerRow: {
     flexDirection: 'row',
@@ -551,65 +742,119 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: TYPOGRAPHY.title,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
   },
   addBtn: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
   },
   summaryStrip: {
-    backgroundColor: COLORS.amberLight,
-    borderWidth: 1,
-    borderColor: COLORS.amberBorder,
+    backgroundColor: COLORS.navyLight,
     borderRadius: SIZING.radiusMd,
-    padding: 12,
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+  },
+  shortcutRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  presetShortcutBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: SIZING.radiusPill,
+    ...SHADOWS.card,
+  },
+  presetShortcutText: {
+    fontSize: 12,
+    fontFamily: FONTS.bold,
+    color: COLORS.navy,
+  },
+  supplierTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: SIZING.radiusSm,
+    backgroundColor: COLORS.oceanLight,
+  },
+  supplierTagText: {
+    fontSize: 12,
+    fontFamily: FONTS.bold,
+    color: COLORS.ocean,
+  },
+  modalLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  modalManageLink: {
+    fontSize: 12,
+    fontFamily: FONTS.bold,
+    color: COLORS.ocean,
   },
   summaryLabel: {
     fontSize: TYPOGRAPHY.caption,
-    fontWeight: '700',
-    color: COLORS.amberDark,
+    fontFamily: FONTS.bold,
+    color: COLORS.ocean,
   },
   summaryValue: {
     fontSize: TYPOGRAPHY.subhead,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
+    fontVariant: ['tabular-nums'],
   },
   listContent: {
-    padding: SIZING.spacingMd,
+    padding: 18,
     paddingTop: 6,
-    gap: 10,
-    paddingBottom: 28,
+    gap: 12,
+    paddingBottom: 104,
   },
   card: {
     backgroundColor: COLORS.surface,
-    borderRadius: SIZING.radiusLg,
+    borderRadius: SIZING.radiusXl,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: SIZING.spacingMd,
-    gap: 10,
+    padding: 18,
+    gap: 12,
     ...SHADOWS.card,
   },
   cardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 8,
+  },
+  woodIdentity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
   },
   woodTitle: {
     fontSize: TYPOGRAPHY.heading,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
   },
   dimText: {
     fontSize: TYPOGRAPHY.body,
     color: COLORS.textSecondary,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
   },
   volText: {
     fontSize: TYPOGRAPHY.caption,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textMuted,
   },
   priceRow: {
@@ -617,18 +862,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: COLORS.surfaceSubtle,
     borderRadius: SIZING.radiusSm,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 8,
   },
   priceText: {
     fontSize: TYPOGRAPHY.label,
     color: COLORS.textSecondary,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
   },
   priceSellText: {
     fontSize: TYPOGRAPHY.label,
-    color: COLORS.amberDark,
-    fontWeight: '800',
+    color: COLORS.navy,
+    fontFamily: FONTS.extraBold,
   },
   cardActions: {
     flexDirection: 'row',
@@ -636,24 +881,24 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
     maxHeight: '90%',
     backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 20,
   },
   modalTitle: {
     fontSize: TYPOGRAPHY.heading,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
   },
   fieldLabel: {
     fontSize: TYPOGRAPHY.label,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
   },
   textInput: {
@@ -664,6 +909,7 @@ const styles = StyleSheet.create({
     borderRadius: SIZING.radiusMd,
     paddingHorizontal: 14,
     fontSize: TYPOGRAPHY.body,
+    fontFamily: FONTS.medium,
     color: COLORS.textPrimary,
   },
   dimRow: {
@@ -676,7 +922,7 @@ const styles = StyleSheet.create({
   },
   dimLabel: {
     fontSize: TYPOGRAPHY.caption,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textSecondary,
   },
   dimInput: {
@@ -687,7 +933,7 @@ const styles = StyleSheet.create({
     borderRadius: SIZING.radiusMd,
     paddingHorizontal: 10,
     fontSize: TYPOGRAPHY.subhead,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
     textAlign: 'center',
   },
@@ -701,7 +947,7 @@ const styles = StyleSheet.create({
   },
   switchLabel: {
     fontSize: TYPOGRAPHY.body,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
   },
   modalActions: {

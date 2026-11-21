@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -16,7 +16,7 @@ import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { listWoodSales } from '../../db/salesRepo';
 import { useAppStore } from '../../store/useAppStore';
-import { COLORS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 import { WoodPaymentStatus, WoodSale } from '../../types/domain';
 import { calculateRemainingAmount } from '../../utils/cubicCalculator';
 import {
@@ -71,11 +71,7 @@ export default function SalesListScreen() {
         </View>
 
         <View style={styles.searchBox}>
-          <MaterialCommunityIcons
-            name="magnify"
-            size={22}
-            color={COLORS.textMuted}
-          />
+          <Feather name="search" size={18} color={COLORS.textMuted} />
           <TextInput
             style={styles.searchInput}
             value={search}
@@ -85,11 +81,7 @@ export default function SalesListScreen() {
           />
           {search.length > 0 ? (
             <TouchableOpacity onPress={() => setSearch('')}>
-              <MaterialCommunityIcons
-                name="close-circle"
-                size={20}
-                color={COLORS.textMuted}
-              />
+              <Feather name="x" size={18} color={COLORS.textMuted} />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -157,11 +149,7 @@ export default function SalesListScreen() {
         ListEmptyComponent={
           <EmptyState
             icon={
-              <MaterialCommunityIcons
-                name="receipt-text-outline"
-                size={44}
-                color={COLORS.textMuted}
-              />
+              <Feather name="file-text" size={32} color={COLORS.textMuted} />
             }
             title="Belum ada catatan penjualan kayu"
             subtitle="Tekan tombol + Jual Kayu untuk menghitung kubikasi otomatis dan membuat nota."
@@ -184,9 +172,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
   },
   topSection: {
-    padding: SIZING.spacingMd,
+    padding: 18,
     paddingBottom: 8,
-    gap: 10,
+    gap: 12,
   },
   headerRow: {
     flexDirection: 'row',
@@ -196,42 +184,44 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: TYPOGRAPHY.title,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
   },
   addBtn: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
   },
   searchBox: {
     minHeight: SIZING.inputMinHeight,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surface,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: SIZING.radiusMd,
-    paddingHorizontal: 12,
-    gap: 8,
+    borderRadius: SIZING.radiusPill,
+    paddingHorizontal: 16,
+    gap: 10,
+    ...SHADOWS.card,
   },
   searchInput: {
     flex: 1,
     fontSize: TYPOGRAPHY.body,
+    fontFamily: FONTS.medium,
     color: COLORS.textPrimary,
     paddingVertical: 8,
   },
   listContent: {
-    padding: SIZING.spacingMd,
+    padding: 18,
     paddingTop: 6,
-    gap: 10,
-    paddingBottom: 28,
+    gap: 12,
+    paddingBottom: 104,
   },
   card: {
     backgroundColor: COLORS.surface,
-    borderRadius: SIZING.radiusLg,
+    borderRadius: SIZING.radiusXl,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: SIZING.spacingMd,
-    gap: 10,
+    padding: 18,
+    gap: 12,
     ...SHADOWS.card,
   },
   cardTop: {
@@ -246,13 +236,13 @@ const styles = StyleSheet.create({
   },
   customerName: {
     fontSize: TYPOGRAPHY.subhead,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
   },
   metaText: {
     fontSize: TYPOGRAPHY.caption,
+    fontFamily: FONTS.semiBold,
     color: COLORS.textMuted,
-    fontWeight: '600',
   },
   cardBottom: {
     flexDirection: 'row',
@@ -264,25 +254,27 @@ const styles = StyleSheet.create({
   },
   volumeLabel: {
     fontSize: TYPOGRAPHY.label,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     color: COLORS.textSecondary,
   },
   totalAmount: {
     fontSize: TYPOGRAPHY.amountMd,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
+    fontVariant: ['tabular-nums'],
   },
   remainingBox: {
     alignItems: 'flex-end',
   },
   remainingLabel: {
     fontSize: TYPOGRAPHY.caption,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.red,
   },
   remainingAmount: {
     fontSize: TYPOGRAPHY.body,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.red,
+    fontVariant: ['tabular-nums'],
   },
 });

@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
-import { COLORS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 import { formatRupiah, parseRupiahInput } from '../../utils/formatters';
 
 interface MoneyInputProps {
@@ -24,7 +24,9 @@ export function MoneyInput({
     <View style={styles.wrapper}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <View style={styles.inputRow}>
-        <Text style={styles.prefix}>Rp</Text>
+        <View style={styles.prefixPill}>
+          <Text style={styles.prefix}>Rp</Text>
+        </View>
         <TextInput
           style={styles.input}
           value={displayRaw}
@@ -48,7 +50,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: TYPOGRAPHY.label,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.textPrimary,
   },
   inputRow: {
@@ -56,27 +58,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surface,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: COLORS.borderStrong,
     borderRadius: SIZING.radiusMd,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
+    gap: 10,
+  },
+  prefixPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: SIZING.radiusSm,
+    backgroundColor: COLORS.surfaceSubtle,
   },
   prefix: {
-    fontSize: TYPOGRAPHY.subhead,
-    fontWeight: '700',
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: FONTS.bold,
     color: COLORS.textSecondary,
-    marginRight: 8,
   },
   input: {
     flex: 1,
     fontSize: TYPOGRAPHY.subhead,
-    fontWeight: '700',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
     paddingVertical: 10,
+    fontVariant: ['tabular-nums'],
   },
   preview: {
     fontSize: TYPOGRAPHY.caption,
-    fontWeight: '600',
-    color: COLORS.amberDark,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.ocean,
   },
 });

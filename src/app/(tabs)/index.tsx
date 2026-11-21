@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -14,7 +14,7 @@ import { BackupStatusBanner } from '../../components/domain/BackupStatusBanner';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { getDashboardSummary } from '../../db/cashFlowRepo';
 import { useAppStore } from '../../store/useAppStore';
-import { COLORS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 import { DashboardSummary } from '../../types/domain';
 import { formatDateIndo, formatRupiah, getTodayDatePrefix } from '../../utils/formatters';
 
@@ -69,23 +69,51 @@ export default function DashboardScreen() {
       >
         <View style={styles.header}>
           <View style={styles.headerText}>
-            <Text style={styles.appLabel}>BukuKayu • {formatDateIndo(getTodayDatePrefix())}</Text>
+            <Text style={styles.greetingText}>
+              Halo, Bos Bengkel • {formatDateIndo(getTodayDatePrefix())}
+            </Text>
             <Text style={styles.workshopTitle} numberOfLines={1}>
               {workshopName}
             </Text>
           </View>
           <TouchableOpacity
-            activeOpacity={0.75}
+            activeOpacity={0.78}
             onPress={() => router.push('/settings/backup')}
             style={styles.settingsBtn}
             accessibilityLabel="Pengaturan dan Cadangkan Data"
           >
-            <MaterialCommunityIcons
-              name="cog-outline"
-              size={26}
-              color={COLORS.textPrimary}
-            />
+            <Feather name="settings" size={20} color={COLORS.charcoal} />
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.heroCard}>
+          <View style={styles.heroTopRow}>
+            <Text style={styles.heroKicker}>Ringkasan Kas Hari Ini</Text>
+            <TouchableOpacity
+              activeOpacity={0.82}
+              onPress={() => router.push('/(tabs)/cashflow')}
+              style={styles.heroPillLink}
+            >
+              <Text style={styles.heroPillText}>Buku Kas</Text>
+              <Feather name="arrow-right" size={13} color={COLORS.textOnDark} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.heroMetricsRow}>
+            <View style={styles.heroMetricCol}>
+              <Text style={styles.heroMetricLabel}>Uang Masuk</Text>
+              <Text style={styles.heroMetricAmount}>
+                {formatRupiah(summary.todayIn)}
+              </Text>
+            </View>
+            <View style={styles.heroVerticalDivider} />
+            <View style={styles.heroMetricCol}>
+              <Text style={styles.heroMetricLabel}>Uang Keluar</Text>
+              <Text style={styles.heroMetricAmount}>
+                {formatRupiah(summary.todayOut)}
+              </Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.actionGroup}>
@@ -95,70 +123,22 @@ export default function DashboardScreen() {
             variant="primary"
             onPress={() => router.push('/sale/new')}
             icon={
-              <MaterialCommunityIcons
-                name="calculator-variant"
-                size={24}
-                color={COLORS.textOnDark}
-              />
+              <Feather name="plus-circle" size={20} color={COLORS.textOnDark} />
             }
           />
           <PrimaryButton
             title="+ Catat Order Furniture"
             size="lg"
-            variant="success"
+            variant="ocean"
             onPress={() => router.push('/order/new')}
-            icon={
-              <MaterialCommunityIcons
-                name="sofa-outline"
-                size={24}
-                color={COLORS.textOnDark}
-              />
-            }
+            icon={<Feather name="layers" size={20} color={COLORS.textOnDark} />}
           />
-        </View>
-
-        <Text style={styles.sectionHeading}>Ringkasan Hari Ini</Text>
-
-        <View style={styles.twoColRow}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => router.push('/(tabs)/cashflow')}
-            style={[styles.metricCard, styles.metricIn]}
-          >
-            <View style={styles.metricLabelRow}>
-              <MaterialCommunityIcons
-                name="arrow-down-circle"
-                size={20}
-                color={COLORS.green}
-              />
-              <Text style={[styles.metricLabel, { color: COLORS.green }]}>
-                Uang Masuk
-              </Text>
-            </View>
-            <Text style={[styles.metricValue, { color: COLORS.green }]}>
-              {formatRupiah(summary.todayIn)}
+          <View style={styles.offlineReassurance}>
+            <Feather name="shield" size={14} color={COLORS.green} />
+            <Text style={styles.offlineReassuranceText}>
+              Tersimpan otomatis 100% offline di HP Anda
             </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => router.push('/(tabs)/cashflow')}
-            style={[styles.metricCard, styles.metricOut]}
-          >
-            <View style={styles.metricLabelRow}>
-              <MaterialCommunityIcons
-                name="arrow-up-circle"
-                size={20}
-                color={COLORS.red}
-              />
-              <Text style={[styles.metricLabel, { color: COLORS.red }]}>
-                Uang Keluar
-              </Text>
-            </View>
-            <Text style={[styles.metricValue, { color: COLORS.red }]}>
-              {formatRupiah(summary.todayOut)}
-            </Text>
-          </TouchableOpacity>
+          </View>
         </View>
 
         <TouchableOpacity
@@ -168,20 +148,14 @@ export default function DashboardScreen() {
         >
           <View style={styles.kasbonTop}>
             <View style={styles.metricLabelRow}>
-              <MaterialCommunityIcons
-                name="alert-circle-outline"
-                size={22}
-                color={COLORS.red}
-              />
+              <View style={styles.kasbonIconWell}>
+                <Feather name="alert-circle" size={18} color={COLORS.red} />
+              </View>
               <Text style={styles.kasbonTitle}>
                 Kasbon / Kurang Bayar Belum Lunas
               </Text>
             </View>
-            <MaterialCommunityIcons
-              name="chevron-right"
-              size={24}
-              color={COLORS.red}
-            />
+            <Feather name="chevron-right" size={20} color={COLORS.textMuted} />
           </View>
           <Text style={styles.kasbonAmount}>
             {formatRupiah(summary.totalUnpaidAll)}
@@ -198,6 +172,9 @@ export default function DashboardScreen() {
             onPress={() => router.push('/(tabs)/orders')}
             style={styles.statusPillCard}
           >
+            <View style={styles.statusIconWell}>
+              <Feather name="layers" size={18} color={COLORS.ocean} />
+            </View>
             <Text style={styles.statusCount}>
               {summary.activeFurnitureOrdersCount}
             </Text>
@@ -209,10 +186,25 @@ export default function DashboardScreen() {
             onPress={() => router.push('/(tabs)/stock')}
             style={styles.statusPillCard}
           >
+            <View
+              style={[
+                styles.statusIconWell,
+                {
+                  backgroundColor:
+                    summary.lowStockCount > 0 ? COLORS.redLight : COLORS.greenLight,
+                },
+              ]}
+            >
+              <Feather
+                name="box"
+                size={18}
+                color={summary.lowStockCount > 0 ? COLORS.red : COLORS.green}
+              />
+            </View>
             <Text
               style={[
                 styles.statusCount,
-                summary.lowStockCount > 0 && { color: COLORS.amberDark },
+                summary.lowStockCount > 0 && { color: COLORS.red },
               ]}
             >
               {summary.lowStockCount}
@@ -220,6 +212,40 @@ export default function DashboardScreen() {
             <Text style={styles.statusText}>Ukuran Stok Menipis (&le;5 btg)</Text>
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => router.push('/settings/wood-presets')}
+          style={styles.menuCard}
+        >
+          <View style={styles.menuIconWell}>
+            <Feather name="sliders" size={20} color={COLORS.ocean} />
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={styles.menuTitle}>Jenis Kayu, Harga Pasar &amp; Ukuran</Text>
+            <Text style={styles.menuSub}>
+              Atur jenis kayu, ubah harga pasar/m³, &amp; ukuran standar
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={20} color={COLORS.textMuted} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => router.push('/settings/suppliers')}
+          style={styles.menuCard}
+        >
+          <View style={[styles.menuIconWell, { backgroundColor: COLORS.navyLight }]}>
+            <Feather name="map-pin" size={20} color={COLORS.navy} />
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={styles.menuTitle}>Asal &amp; Pemasok Kayu</Text>
+            <Text style={styles.menuSub}>
+              Catat dapat kayu dari mana, harga beli/m³, &amp; jenis kayunya
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={20} color={COLORS.textMuted} />
+        </TouchableOpacity>
 
         <BackupStatusBanner />
       </ScrollView>
@@ -233,9 +259,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
   },
   container: {
-    padding: SIZING.spacingMd,
-    gap: 14,
-    paddingBottom: 28,
+    padding: 18,
+    gap: 16,
+    paddingBottom: 104,
   },
   header: {
     flexDirection: 'row',
@@ -245,21 +271,22 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
+    gap: 2,
   },
-  appLabel: {
+  greetingText: {
     fontSize: TYPOGRAPHY.label,
-    fontWeight: '700',
-    color: COLORS.amberDark,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.textSecondary,
   },
   workshopTitle: {
-    fontSize: TYPOGRAPHY.title,
-    fontWeight: '800',
+    fontSize: TYPOGRAPHY.hero,
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
   },
   settingsBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: SIZING.radiusMd,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -267,54 +294,102 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...SHADOWS.card,
   },
+  heroCard: {
+    backgroundColor: COLORS.navy,
+    borderRadius: 24,
+    padding: 20,
+    gap: 14,
+    ...SHADOWS.floating,
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  heroKicker: {
+    fontSize: TYPOGRAPHY.label,
+    fontFamily: FONTS.semiBold,
+    color: '#BFDBFE',
+  },
+  heroPillLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: SIZING.radiusPill,
+    backgroundColor: COLORS.ocean,
+  },
+  heroPillText: {
+    fontSize: 12,
+    fontFamily: FONTS.bold,
+    color: COLORS.textOnDark,
+  },
+  heroMetricsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  heroMetricCol: {
+    flex: 1,
+    gap: 4,
+  },
+  heroMetricLabel: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: FONTS.medium,
+    color: '#CBE1F8',
+  },
+  heroMetricAmount: {
+    fontSize: TYPOGRAPHY.amountMd,
+    fontFamily: FONTS.extraBold,
+    color: COLORS.textOnDark,
+    fontVariant: ['tabular-nums'],
+  },
+  heroVerticalDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+  },
   actionGroup: {
     gap: 10,
   },
-  sectionHeading: {
-    fontSize: TYPOGRAPHY.subhead,
-    fontWeight: '800',
-    color: COLORS.textPrimary,
-    marginTop: 4,
+  offlineReassurance: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingTop: 2,
+  },
+  offlineReassuranceText: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: FONTS.semiBold,
+    color: COLORS.textSecondary,
   },
   twoColRow: {
     flexDirection: 'row',
-    gap: 10,
-  },
-  metricCard: {
-    flex: 1,
-    borderRadius: SIZING.radiusLg,
-    borderWidth: 1.5,
-    padding: 14,
-    gap: 6,
-    ...SHADOWS.card,
-  },
-  metricIn: {
-    backgroundColor: COLORS.greenLight,
-    borderColor: COLORS.greenBorder,
-  },
-  metricOut: {
-    backgroundColor: COLORS.redLight,
-    borderColor: COLORS.redBorder,
+    gap: 12,
   },
   metricLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+    flex: 1,
   },
-  metricLabel: {
-    fontSize: TYPOGRAPHY.label,
-    fontWeight: '700',
-  },
-  metricValue: {
-    fontSize: TYPOGRAPHY.amountMd,
-    fontWeight: '800',
+  kasbonIconWell: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.redLight,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   kasbonCard: {
     backgroundColor: COLORS.surface,
-    borderRadius: SIZING.radiusLg,
-    borderWidth: 1.5,
-    borderColor: COLORS.redBorder,
-    padding: SIZING.spacingMd,
+    borderRadius: SIZING.radiusXl,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 18,
     gap: 6,
     ...SHADOWS.card,
   },
@@ -325,37 +400,76 @@ const styles = StyleSheet.create({
   },
   kasbonTitle: {
     fontSize: TYPOGRAPHY.body,
-    fontWeight: '700',
+    fontFamily: FONTS.bold,
     color: COLORS.red,
   },
   kasbonAmount: {
     fontSize: TYPOGRAPHY.amountLg,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.red,
+    fontVariant: ['tabular-nums'],
   },
   kasbonBreakdown: {
     fontSize: TYPOGRAPHY.label,
+    fontFamily: FONTS.semiBold,
     color: COLORS.textSecondary,
-    fontWeight: '600',
   },
   statusPillCard: {
     flex: 1,
     backgroundColor: COLORS.surface,
-    borderRadius: SIZING.radiusLg,
+    borderRadius: SIZING.radiusXl,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: 14,
-    gap: 4,
+    padding: 16,
+    gap: 6,
     ...SHADOWS.card,
+  },
+  statusIconWell: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: COLORS.oceanLight,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statusCount: {
     fontSize: 24,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
+    fontVariant: ['tabular-nums'],
   },
   statusText: {
     fontSize: TYPOGRAPHY.label,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
+    color: COLORS.textSecondary,
+  },
+  menuCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: SIZING.radiusXl,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    ...SHADOWS.card,
+  },
+  menuIconWell: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.oceanLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuTitle: {
+    fontSize: TYPOGRAPHY.body,
+    fontFamily: FONTS.bold,
+    color: COLORS.textPrimary,
+  },
+  menuSub: {
+    fontSize: TYPOGRAPHY.caption,
+    fontFamily: FONTS.medium,
     color: COLORS.textSecondary,
   },
 });

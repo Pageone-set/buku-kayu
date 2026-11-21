@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { COLORS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 
 export interface ChipOption<T extends string | number> {
   label: string;
@@ -31,7 +31,7 @@ export function ChipSelector<T extends string | number>({
     return (
       <TouchableOpacity
         key={String(opt.value)}
-        activeOpacity={0.75}
+        activeOpacity={0.78}
         onPress={() => onChange(opt.value)}
         style={[styles.chip, active && styles.chipActive]}
         accessibilityRole="button"
@@ -72,26 +72,23 @@ const styles = StyleSheet.create({
   },
   chip: {
     minHeight: SIZING.chipMinHeight,
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: SIZING.radiusMd,
-    backgroundColor: COLORS.surface,
-    borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderRadius: SIZING.radiusPill,
+    backgroundColor: COLORS.surfaceSubtle,
     justifyContent: 'center',
     alignItems: 'center',
   },
   chipActive: {
-    backgroundColor: COLORS.amberLight,
-    borderColor: COLORS.amber,
+    backgroundColor: COLORS.charcoal,
   },
   chipText: {
-    fontSize: TYPOGRAPHY.body,
-    fontWeight: '600',
+    fontSize: TYPOGRAPHY.label,
+    fontFamily: FONTS.semiBold,
     color: COLORS.textSecondary,
   },
   chipTextActive: {
-    color: COLORS.amberDark,
-    fontWeight: '700',
+    color: COLORS.textOnDark,
+    fontFamily: FONTS.bold,
   },
 });

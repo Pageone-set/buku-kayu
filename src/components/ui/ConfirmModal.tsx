@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, StyleSheet, Text, View } from 'react-native';
-import { COLORS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 import { PrimaryButton } from './PrimaryButton';
 
 interface ConfirmModalProps {
@@ -62,7 +62,7 @@ export function ConfirmModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -71,17 +71,18 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     backgroundColor: COLORS.surface,
-    borderRadius: SIZING.radiusLg,
-    padding: 20,
+    borderRadius: SIZING.radiusXl,
+    padding: 22,
     gap: 14,
   },
   title: {
     fontSize: TYPOGRAPHY.heading,
-    fontWeight: '800',
+    fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
   },
   message: {
     fontSize: TYPOGRAPHY.body,
+    fontFamily: FONTS.regular,
     color: COLORS.textSecondary,
     lineHeight: 24,
   },
