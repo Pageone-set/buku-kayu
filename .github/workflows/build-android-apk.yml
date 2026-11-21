@@ -1,0 +1,134 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      build_variant:
+        description: 'Jenis APK yang dibangun (release = APK mandiri offline, debug = dev client)'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+
+jobs:
+  build-android-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      CI: true
+      EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID }}
+      GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript check and unit tests
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Generate Android native project (Expo Prebuild)
+        run: npx expo prebuild --platform android --clean --no-install
+
+      - name: Accept Android SDK licenses
+        shell: bash
+        run: |
+          SDK_MANAGER=$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -n 1 || true)
+          if [ -n "$SDK_MANAGER" ] && [ -x "$SDK_MANAGER" ]; then
+            { yes || true; } | "$SDK_MANAGER" --licenses >/dev/null 2>&1 || true
+          fi
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Android APK
+        id: build
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          VARIANT="${{ github.event.inputs.build_variant || 'release' }}"
+          mkdir -p output
+
+          cd android
+          chmod +x gradlew
+          if [ "$VARIANT" = "debug" ]; then
+            ./gradlew assembleDebug --no-daemon
+            SOURCE_APK="app/build/outputs/apk/debug/app-debug.apk"
+          else
+            ./gradlew assembleRelease --no-daemon
+            SOURCE_APK="app/build/outputs/apk/release/app-release.apk"
+          fi
+          cd ..
+
+          APK_PATH="output/BukuKayu-${VARIANT}.apk"
+          cp "android/${SOURCE_APK}" "$APK_PATH"
+
+          if [ "$VARIANT" = "release" ] && [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "Menandatangani APK dengan keystore rilis kustom..."
+            BUILD_TOOLS_DIR=$(ls -d "$ANDROID_HOME"/build-tools/* 2>/dev/null | sort -V | tail -n 1)
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > release.keystore
+            "$BUILD_TOOLS_DIR/zipalign" -f -p 4 "$APK_PATH" "output/aligned.apk"
+            "$BUILD_TOOLS_DIR/apksigner" sign \
+              --ks release.keystore \
+              --ks-pass "pass:${ANDROID_KEYSTORE_PASSWORD}" \
+              --ks-key-alias "${ANDROID_KEY_ALIAS}" \
+              --key-pass "pass:${ANDROID_KEY_PASSWORD}" \
+              --out "$APK_PATH" \
+              "output/aligned.apk"
+            rm -f release.keystore "output/aligned.apk" "${APK_PATH}.idsig"
+          fi
+
+          echo "variant=${VARIANT}" >> "$GITHUB_OUTPUT"
+          echo "apk_path=${APK_PATH}" >> "$GITHUB_OUTPUT"
+
+      - name: Ringkasan APK & SHA-1 untuk Google Drive
+        shell: bash
+        run: |
+          APK_PATH="${{ steps.build.outputs.apk_path }}"
+          APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
+          SHA1=$(keytool -printcert -jarfile "$APK_PATH" 2>/dev/null | grep -m1 "SHA1:" | sed 's/.*SHA1:[[:space:]]*//' || true)
+
+          {
+            echo "## Build APK BukuKayu Berhasil"
+            echo ""
+            echo "| Keterangan | Nilai |"
+            echo "| :--- | :--- |"
+            echo "| Varian | \`${{ steps.build.outputs.variant }}\` |"
+            echo "| File APK | \`${APK_PATH}\` |"
+            echo "| Ukuran | ${APK_SIZE} |"
+            echo "| SHA-1 Sertifikat | \`${SHA1:-Tidak terbaca}\` |"
+            echo ""
+            echo "> **Info Google Drive Backup:** Salin nilai **SHA-1 Sertifikat** di atas ke **Google Cloud Console → Credentials → Android OAuth Client ID** (`com.bukukayu.app`) agar Login Google Drive berfungsi di APK ini."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BukuKayu-${{ steps.build.outputs.variant }}-apk
+          path: output/*.apk
+          retention-days: 30

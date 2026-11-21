@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "BukuKayu",
+    "slug": "bukukayu",
+    "version": "1.0.0",
+    "scheme": "bukukayu",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.bukukayu.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#B45309",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-sqlite",
+      "@react-native-google-signin/google-signin",
+      "expo-sharing",
+      "expo-font"
+    ],
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "b60ca760-f662-4719-baa6-8a7ed042b44d"
+      }
+    },
+    "owner": "page-one"
+  }
+}
