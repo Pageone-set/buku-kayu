@@ -108,6 +108,9 @@ export function buildWoodSaleReceiptHtml(
 <html>
 <head>
 <meta charset="utf-8" />
+<title>${escapeHtml(
+    `Nota ${sale.invoice_number}${sale.customer_name ? ` - ${sale.customer_name}` : ''}`
+  )}</title>
 <style>
   body { font-family: Arial, sans-serif; color: #222831; padding: 24px; font-size: 13px; background: #F7F9FB; }
   .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0A3C6E; padding-bottom: 12px; margin-bottom: 16px; }
@@ -271,6 +274,9 @@ export function buildFurnitureOrderReceiptHtml(
 <html>
 <head>
 <meta charset="utf-8" />
+<title>${escapeHtml(
+    `Nota Order ${order.order_code}${order.customer_name ? ` - ${order.customer_name}` : ''}`
+  )}</title>
 <style>
   * { box-sizing: border-box; }
   @page { margin: 16px; }
@@ -419,6 +425,7 @@ export function buildMonthlyCashFlowReportHtml(
 <html>
 <head>
 <meta charset="utf-8" />
+<title>${escapeHtml(`Catatan Keuangan ${periodLabel}`)}</title>
 <style>
   * { box-sizing: border-box; }
   @page { margin: 16px; }

@@ -216,7 +216,10 @@ export default function FurnitureOrderDetailScreen() {
   const handleSharePdf = async () => {
     try {
       const html = buildFurnitureOrderReceiptHtml(order, workshopName);
-      await shareHtmlAsPdf(html, `Order ${order.order_code}`);
+      const fileName = `Nota_Order_${order.order_code}${
+        order.customer_name ? `_${order.customer_name}` : ''
+      }`;
+      await shareHtmlAsPdf(html, `Order ${order.order_code}`, fileName);
     } catch {
       Alert.alert('Gagal Membuat PDF', 'Terjadi kendala saat membuat nota PDF.');
     }

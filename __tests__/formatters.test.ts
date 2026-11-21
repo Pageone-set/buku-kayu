@@ -1,4 +1,5 @@
 import {
+  buildSafeFileName,
   calculateDaysFromToday,
   formatBackupRelativeTime,
   formatBytesSize,
@@ -73,5 +74,20 @@ describe('formatters', () => {
     expect(calculateDaysFromToday('2027-01-06', today)).toBe(45);
     expect(calculateDaysFromToday('2026-11-20', today)).toBe(-2);
     expect(calculateDaysFromToday('2026-02-30', today)).toBeNull();
+  });
+
+  test('buildSafeFileName membersihkan karakter ilegal, ekstensi ganda, fallback kosong, dan panjang nama', () => {
+    expect(buildSafeFileName('Nota KY-20261122-1001 Pak Budi/CV', 'pdf')).toBe(
+      'Nota_KY-20261122-1001_Pak_Budi_CV.pdf'
+    );
+    expect(buildSafeFileName('BukuKayu_Keuangan_November_2026.csv', 'csv')).toBe(
+      'BukuKayu_Keuangan_November_2026.csv'
+    );
+    expect(buildSafeFileName('///...---', '.PDF')).toBe('BukuKayu_Dokumen.pdf');
+
+    const longName = `Nota_Order_${'A'.repeat(120)}`;
+    const safeLong = buildSafeFileName(longName, 'pdf');
+    expect(safeLong.endsWith('.pdf')).toBe(true);
+    expect(safeLong.length).toBeLessThanOrEqual(84);
   });
 });

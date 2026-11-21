@@ -2,7 +2,7 @@ import { File, Paths } from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Linking, Share } from 'react-native';
-import { normalizeWhatsAppPhone } from './formatters';
+import { buildSafeFileName, normalizeWhatsAppPhone } from './formatters';
 
 export async function shareTextToWhatsApp(
   text: string,
@@ -43,7 +43,8 @@ export async function shareTextToWhatsApp(
 
 export async function shareHtmlAsPdf(
   html: string,
-  dialogTitle: string
+  dialogTitle: string,
+  fileName?: string
 ): Promise<void> {
   const { uri } = await Print.printToFileAsync({ html });
   const available = await Sharing.isAvailableAsync();
@@ -52,7 +53,25 @@ export async function shareHtmlAsPdf(
     return;
   }
 
-  await Sharing.shareAsync(uri, {
+  const safeFileName = buildSafeFileName(fileName || dialogTitle, 'pdf');
+  let shareUri = uri;
+
+  try {
+    const sourceFile = new File(uri);
+    const targetFile = new File(Paths.cache, safeFileName);
+    if (sourceFile.uri !== targetFile.uri) {
+      if (targetFile.exists) {
+        targetFile.delete();
+      }
+      await sourceFile.move(targetFile, { overwrite: true });
+      shareUri = targetFile.uri;
+    }
+  } catch {
+    shareUri = uri;
+  }
+
+  // Biarkan file cache tetap ada setelah shareAsync karena WhatsApp membaca URI secara asinkron
+  await Sharing.shareAsync(shareUri, {
     mimeType: 'application/pdf',
     dialogTitle,
     UTI: 'com.adobe.pdf',
@@ -69,21 +88,12 @@ export async function shareCsvFile(
     throw new Error('Fitur bagikan file tidak tersedia di perangkat ini.');
   }
 
-  const csvFile = new File(Paths.cache, fileName);
-  try {
-    csvFile.create({ intermediates: true, overwrite: true });
-    await csvFile.write(csvContent);
-    await Sharing.shareAsync(csvFile.uri, {
-      mimeType: 'text/csv',
-      dialogTitle,
-    });
-  } finally {
-    if (csvFile.exists) {
-      try {
-        csvFile.delete();
-      } catch {
-        // ignore cleanup failure
-      }
-    }
-  }
+  const safeFileName = buildSafeFileName(fileName, 'csv');
+  const csvFile = new File(Paths.cache, safeFileName);
+  csvFile.create({ intermediates: true, overwrite: true });
+  await csvFile.write(csvContent);
+  await Sharing.shareAsync(csvFile.uri, {
+    mimeType: 'text/csv',
+    dialogTitle,
+  });
 }

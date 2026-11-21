@@ -111,7 +111,10 @@ export default function WoodSaleDetailScreen() {
   const handleSharePdf = async () => {
     try {
       const html = buildWoodSaleReceiptHtml(sale, workshopName);
-      await shareHtmlAsPdf(html, `Nota ${sale.invoice_number}`);
+      const fileName = `Nota_${sale.invoice_number}${
+        sale.customer_name ? `_${sale.customer_name}` : ''
+      }`;
+      await shareHtmlAsPdf(html, `Nota ${sale.invoice_number}`, fileName);
     } catch {
       Alert.alert('Gagal Membuat PDF', 'Terjadi kendala saat membuat nota PDF.');
     }

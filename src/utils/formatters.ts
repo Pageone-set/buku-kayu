@@ -288,3 +288,30 @@ export function normalizeWhatsAppPhone(phone: string): string {
   }
   return digits;
 }
+
+const MAX_SAFE_FILE_BASE_LENGTH = 80;
+
+export function buildSafeFileName(rawName: string, extension: string): string {
+  const cleanExt = extension.replace(/^\.+/, '').trim().toLowerCase();
+  let trimmed = rawName.trim();
+
+  if (cleanExt) {
+    const escapedExt = cleanExt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    trimmed = trimmed.replace(new RegExp(`\\.${escapedExt}$`, 'i'), '');
+  }
+
+  let base = trimmed
+    .replace(/[^A-Za-z0-9_-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^[_-]+|[_-]+$/g, '');
+
+  if (base.length > MAX_SAFE_FILE_BASE_LENGTH) {
+    base = base.slice(0, MAX_SAFE_FILE_BASE_LENGTH).replace(/[_-]+$/g, '');
+  }
+
+  if (!base) {
+    base = 'BukuKayu_Dokumen';
+  }
+
+  return cleanExt ? `${base}.${cleanExt}` : base;
+}

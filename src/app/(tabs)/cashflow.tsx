@@ -241,12 +241,16 @@ export default function CashFlowScreen() {
 
       if (kind === 'PDF') {
         const html = buildMonthlyCashFlowReportHtml(exportData);
-        await shareHtmlAsPdf(html, `Catatan Keuangan ${periodLabel}`);
+        await shareHtmlAsPdf(
+          html,
+          `Catatan Keuangan ${periodLabel}`,
+          `BukuKayu_Keuangan_${periodLabel}`
+        );
       } else {
         const csv = buildMonthlyCashFlowCsv(exportData);
         await shareCsvFile(
           csv,
-          `BukuKayu_Keuangan_${report.monthPrefix}.csv`,
+          `BukuKayu_Keuangan_${periodLabel}.csv`,
           `Catatan Keuangan Excel/CSV ${periodLabel}`
         );
       }
