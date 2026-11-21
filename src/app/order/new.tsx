@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChipSelector } from '../../components/ui/ChipSelector';
+import { DeadlinePicker } from '../../components/ui/DeadlinePicker';
 import { MoneyInput } from '../../components/ui/MoneyInput';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { SectionCard } from '../../components/ui/SectionCard';
@@ -19,9 +19,9 @@ import { useAppStore } from '../../store/useAppStore';
 import { COLORS, FONTS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 import { calculateRemainingAmount } from '../../utils/cubicCalculator';
 import {
-  formatDateIndo,
   formatRupiah,
   getOffsetDateString,
+  isValidIsoDateString,
 } from '../../utils/formatters';
 
 export default function NewFurnitureOrderScreen() {
@@ -30,7 +30,6 @@ export default function NewFurnitureOrderScreen() {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [itemName, setItemName] = useState('');
-  const [deadlineDaysPreset, setDeadlineDaysPreset] = useState<number>(14);
   const [deadlineDate, setDeadlineDate] = useState<string>(
     getOffsetDateString(14)
   );
@@ -48,6 +47,13 @@ export default function NewFurnitureOrderScreen() {
     }
     if (!itemName.trim()) {
       Alert.alert('Periksa Isian', 'Nama barang pesanan wajib diisi.');
+      return;
+    }
+    if (!isValidIsoDateString(deadlineDate)) {
+      Alert.alert(
+        'Periksa Tanggal Selesai',
+        'Masukkan atau pilih perkiraan tanggal selesai yang valid (YYYY-MM-DD).'
+      );
       return;
     }
     if (totalPrice <= 0) {
@@ -115,29 +121,7 @@ export default function NewFurnitureOrderScreen() {
           />
 
           <Text style={styles.fieldLabel}>Perkiraan Selesai</Text>
-          <ChipSelector
-            options={[
-              { label: '+7 Hari', value: 7 },
-              { label: '+14 Hari', value: 14 },
-              { label: '+30 Hari', value: 30 },
-            ]}
-            value={deadlineDaysPreset}
-            onChange={(days) => {
-              setDeadlineDaysPreset(days);
-              setDeadlineDate(getOffsetDateString(days));
-            }}
-          />
-
-          <TextInput
-            style={styles.textInput}
-            value={deadlineDate}
-            onChangeText={setDeadlineDate}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={COLORS.textMuted}
-          />
-          <Text style={styles.helperText}>
-            Target selesai: {formatDateIndo(deadlineDate)}
-          </Text>
+          <DeadlinePicker value={deadlineDate} onChange={setDeadlineDate} />
         </SectionCard>
 
         <SectionCard title="2. Harga & Pembayaran Awal">

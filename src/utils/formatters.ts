@@ -85,6 +85,78 @@ export function getOffsetDateString(daysFromToday: number): string {
   return getLocalDateString(date);
 }
 
+export type DeadlineDurationUnit = 'DAYS' | 'WEEKS' | 'MONTHS';
+
+export function getOffsetDateByDuration(
+  amount: number,
+  unit: DeadlineDurationUnit,
+  baseDate: Date = new Date()
+): string {
+  const safeAmount = Number.isFinite(amount)
+    ? Math.max(0, Math.round(amount))
+    : 0;
+  const result = new Date(
+    baseDate.getFullYear(),
+    baseDate.getMonth(),
+    baseDate.getDate()
+  );
+
+  if (unit === 'DAYS') {
+    result.setDate(result.getDate() + safeAmount);
+    return getLocalDateString(result);
+  }
+  if (unit === 'WEEKS') {
+    result.setDate(result.getDate() + safeAmount * 7);
+    return getLocalDateString(result);
+  }
+
+  // Clamp day-of-month so e.g. Jan 31 + 1 month lands on Feb 28/29 rather than March
+  const originalDay = result.getDate();
+  result.setDate(1);
+  result.setMonth(result.getMonth() + safeAmount);
+  const lastDayOfTargetMonth = new Date(
+    result.getFullYear(),
+    result.getMonth() + 1,
+    0
+  ).getDate();
+  result.setDate(Math.min(originalDay, lastDayOfTargetMonth));
+  return getLocalDateString(result);
+}
+
+export function isValidIsoDateString(dateString: string): boolean {
+  const trimmed = dateString.trim();
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (!match) {
+    return false;
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(year, month - 1, day);
+  return (
+    parsed.getFullYear() === year &&
+    parsed.getMonth() === month - 1 &&
+    parsed.getDate() === day
+  );
+}
+
+export function calculateDaysFromToday(
+  dateString: string,
+  today: Date = new Date()
+): number | null {
+  if (!isValidIsoDateString(dateString)) {
+    return null;
+  }
+  const [y, m, d] = dateString.trim().split('-').map(Number);
+  const targetMidnight = new Date(y, m - 1, d).getTime();
+  const todayMidnight = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  ).getTime();
+  return Math.round((targetMidnight - todayMidnight) / 86_400_000);
+}
+
 export function getLocalTimestampIso(date: Date = new Date()): string {
   const tzOffsetMin = -date.getTimezoneOffset();
   const sign = tzOffsetMin >= 0 ? '+' : '-';
@@ -119,6 +191,26 @@ export function formatDateIndo(dateString: string): string {
     return dateString;
   }
   return `${parsed.getDate()} ${MONTHS_ID[parsed.getMonth()]} ${parsed.getFullYear()}`;
+}
+
+const FULL_MONTHS_ID = [
+  'Januari',
+  'Februari',
+  'Maret',
+  'April',
+  'Mei',
+  'Juni',
+  'Juli',
+  'Agustus',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
+] as const;
+
+export function formatMonthYearIndo(year: number, monthIndex: number): string {
+  const safeIndex = ((monthIndex % 12) + 12) % 12;
+  return `${FULL_MONTHS_ID[safeIndex]} ${year}`;
 }
 
 export function formatDateTimeIndo(isoString: string): string {

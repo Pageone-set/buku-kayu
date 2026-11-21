@@ -146,6 +146,71 @@ export async function listCashFlows(options?: {
   };
 }
 
+export async function getMonthlyCashFlowReport(
+  year: number,
+  monthIndex: number
+): Promise<{
+  monthPrefix: string;
+  rows: CashFlow[];
+  summary: CashFlowSummary;
+  categoryTotals: Record<CashFlowCategory, number>;
+}> {
+  const db = await getDatabase();
+  const safeMonth = (((monthIndex % 12) + 12) % 12) + 1;
+  const monthPrefix = `${year}-${String(safeMonth).padStart(2, '0')}`;
+
+  const rows = await db.getAllAsync<CashFlow>(
+    `SELECT * FROM cash_flows
+     WHERE substr(created_at, 1, 7) = ?
+     ORDER BY created_at ASC, id ASC`,
+    monthPrefix
+  );
+
+  let totalIn = 0;
+  let businessOut = 0;
+  let personalDrawOut = 0;
+  const categoryTotals: Record<CashFlowCategory, number> = {
+    WOOD_SALE: 0,
+    FURNITURE_PAYMENT: 0,
+    MATERIAL_BUY: 0,
+    LABOR_WAGE: 0,
+    OPERATIONAL: 0,
+    PERSONAL_DRAW: 0,
+  };
+
+  for (const row of rows) {
+    categoryTotals[row.category] = Math.round(
+      (categoryTotals[row.category] ?? 0) + row.amount
+    );
+    if (row.type === 'IN') {
+      totalIn += row.amount;
+    } else if (row.category === 'PERSONAL_DRAW') {
+      personalDrawOut += row.amount;
+    } else {
+      businessOut += row.amount;
+    }
+  }
+
+  const roundedIn = Math.round(totalIn);
+  const roundedBusinessOut = Math.round(businessOut);
+  const roundedPersonalOut = Math.round(personalDrawOut);
+  const totalOut = roundedBusinessOut + roundedPersonalOut;
+
+  return {
+    monthPrefix,
+    rows,
+    summary: {
+      totalIn: roundedIn,
+      businessOut: roundedBusinessOut,
+      personalDrawOut: roundedPersonalOut,
+      totalOut,
+      businessNet: roundedIn - roundedBusinessOut,
+      cashBalance: roundedIn - totalOut,
+    },
+    categoryTotals,
+  };
+}
+
 export async function addManualCashFlow(input: CreateCashFlowInput): Promise<number> {
   const cleanAmount = Math.round(input.amount);
   if (cleanAmount <= 0) {

@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -22,6 +22,10 @@ import {
   performManualBackup,
   performRestoreFromDrive,
 } from '../../services/driveBackup';
+import {
+  exportLocalBackupToShare,
+  restoreLocalBackupFromPicker,
+} from '../../services/localBackupService';
 import { useAppStore } from '../../store/useAppStore';
 import { COLORS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 import {
@@ -45,9 +49,12 @@ export default function BackupSettingsScreen() {
   const [savingName, setSavingName] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+  const [localRestoreConfirmOpen, setLocalRestoreConfirmOpen] = useState(false);
+  const [localBusy, setLocalBusy] = useState(false);
   const [newPhoneOfferOpen, setNewPhoneOfferOpen] = useState(false);
 
-  const isBusy = syncStatus === 'BACKING_UP' || syncStatus === 'RESTORING';
+  const isBusy =
+    localBusy || syncStatus === 'BACKING_UP' || syncStatus === 'RESTORING';
 
   const handleSaveWorkshopName = async () => {
     const clean = nameInput.trim();
@@ -158,6 +165,44 @@ export default function BackupSettingsScreen() {
     }
   };
 
+  const handleExportLocalFile = async () => {
+    setLocalBusy(true);
+    try {
+      await exportLocalBackupToShare();
+    } catch (error) {
+      Alert.alert(
+        'Gagal Ekspor File',
+        error instanceof Error ? error.message : 'Tidak dapat mengekspor file.'
+      );
+    } finally {
+      setLocalBusy(false);
+    }
+  };
+
+  const handleConfirmLocalRestore = async () => {
+    setLocalRestoreConfirmOpen(false);
+    setLocalBusy(true);
+    try {
+      const result = await restoreLocalBackupFromPicker();
+      if (!result.canceled) {
+        setNameInput(useAppStore.getState().workshopName);
+        Alert.alert(
+          'Data Berhasil Dipulihkan',
+          `Data bengkel berhasil dipulihkan dari file "${result.fileName}".`
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Gagal Memulihkan File',
+        error instanceof Error
+          ? error.message
+          : 'Pastikan file yang dipilih adalah cadangan .db BukuKayu yang valid.'
+      );
+    } finally {
+      setLocalBusy(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -192,6 +237,30 @@ export default function BackupSettingsScreen() {
             title="Buka Menu Asal & Pemasok Kayu"
             variant="outline"
             onPress={() => router.push('/settings/suppliers')}
+          />
+        </SectionCard>
+
+        <SectionCard title="Cadangan File HP / WhatsApp (Tanpa Login)">
+          <Text style={styles.bodyText}>
+            Simpan atau kirim file cadangan (.db) langsung ke folder HP,
+            WhatsApp, atau Telegram — tidak perlu login Google Cloud maupun
+            pengaturan SHA-1.
+          </Text>
+          <PrimaryButton
+            title="Ekspor / Kirim File Cadangan (.db)"
+            variant="primary"
+            size="lg"
+            loading={localBusy}
+            disabled={isBusy}
+            onPress={() => void handleExportLocalFile()}
+            icon={<Feather name="share-2" size={20} color={COLORS.textOnDark} />}
+          />
+          <PrimaryButton
+            title="Pulihkan dari File di HP (.db)"
+            variant="outline"
+            disabled={isBusy}
+            onPress={() => setLocalRestoreConfirmOpen(true)}
+            icon={<Feather name="folder" size={19} color={COLORS.textPrimary} />}
           />
         </SectionCard>
 
@@ -339,19 +408,6 @@ export default function BackupSettingsScreen() {
             />
           </View>
         </SectionCard>
-
-        <View style={styles.infoNote}>
-          <MaterialCommunityIcons
-            name="information-outline"
-            size={20}
-            color={COLORS.navy}
-          />
-          <Text style={styles.infoNoteText}>
-            Login Google Drive berjalan di aplikasi Android Development Build /
-            APK yang sudah didaftarkan Package Name (com.bukukayu.app) dan
-            SHA-1 di Google Cloud Console.
-          </Text>
-        </View>
       </ScrollView>
 
       <ConfirmModal
@@ -380,6 +436,16 @@ export default function BackupSettingsScreen() {
         loading={syncStatus === 'RESTORING'}
         onConfirm={() => void handleConfirmRestore()}
         onCancel={() => setNewPhoneOfferOpen(false)}
+      />
+      <ConfirmModal
+        visible={localRestoreConfirmOpen}
+        title="Pulihkan dari File Cadangan HP?"
+        message="Pilih file .db cadangan BukuKayu dari memori HP atau unduhan WhatsApp. Seluruh catatan saat ini akan diganti dengan isi file cadangan tersebut."
+        confirmLabel="Pilih File (.db)"
+        danger
+        loading={localBusy}
+        onConfirm={() => void handleConfirmLocalRestore()}
+        onCancel={() => setLocalRestoreConfirmOpen(false)}
       />
     </SafeAreaView>
   );
@@ -477,20 +543,5 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.caption,
     color: COLORS.textSecondary,
     marginTop: 2,
-  },
-  infoNote: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    backgroundColor: COLORS.navyLight,
-    borderRadius: SIZING.radiusMd,
-    padding: 12,
-  },
-  infoNoteText: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.caption,
-    color: COLORS.navy,
-    lineHeight: 19,
-    fontWeight: '600',
   },
 });

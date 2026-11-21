@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -9,11 +9,13 @@ import {
   Switch,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { OrderStatusStepper } from '../../components/domain/OrderStatusStepper';
 import { ChipSelector } from '../../components/ui/ChipSelector';
+import { DeadlinePicker } from '../../components/ui/DeadlinePicker';
 import { MoneyInput } from '../../components/ui/MoneyInput';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { SectionCard } from '../../components/ui/SectionCard';
@@ -22,10 +24,11 @@ import {
   addFurnitureCost,
   addFurniturePayment,
   getFurnitureOrderDetail,
+  updateFurnitureOrderDeadline,
   updateFurnitureOrderStatus,
 } from '../../db/ordersRepo';
 import { useAppStore } from '../../store/useAppStore';
-import { COLORS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import { COLORS, FONTS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 import {
   FURNITURE_COST_CATEGORY_LABELS,
   FURNITURE_PAYMENT_TYPE_LABELS,
@@ -67,6 +70,9 @@ export default function FurnitureOrderDetailScreen() {
   const [costDesc, setCostDesc] = useState('');
   const [costAmount, setCostAmount] = useState(0);
   const [recordCostInCash, setRecordCostInCash] = useState(true);
+
+  const [deadlineModalOpen, setDeadlineModalOpen] = useState(false);
+  const [draftDeadline, setDraftDeadline] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -176,6 +182,28 @@ export default function FurnitureOrderDetailScreen() {
     }
   };
 
+  const openDeadlineModal = () => {
+    setDraftDeadline(order.deadline_date);
+    setDeadlineModalOpen(true);
+  };
+
+  const handleSaveDeadline = async () => {
+    setSubmitting(true);
+    try {
+      await updateFurnitureOrderDeadline(order.id, draftDeadline);
+      setDeadlineModalOpen(false);
+      bumpDbRevision(true);
+      await loadDetail();
+    } catch (error) {
+      Alert.alert(
+        'Periksa Tanggal Selesai',
+        error instanceof Error ? error.message : 'Tanggal tidak valid.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleShareWhatsApp = async () => {
     try {
       const text = buildFurnitureOrderWhatsAppText(order, workshopName);
@@ -206,9 +234,19 @@ export default function FurnitureOrderDetailScreen() {
               {order.customer_phone ? (
                 <Text style={styles.metaText}>WA: {order.customer_phone}</Text>
               ) : null}
-              <Text style={styles.metaText}>
-                Target Selesai: {formatDateIndo(order.deadline_date)}
-              </Text>
+              <View style={styles.deadlineRow}>
+                <Text style={styles.metaText}>
+                  Perkiraan Selesai: {formatDateIndo(order.deadline_date)}
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.78}
+                  onPress={openDeadlineModal}
+                  style={styles.editDeadlinePill}
+                >
+                  <Feather name="calendar" size={12} color={COLORS.ocean} />
+                  <Text style={styles.editDeadlineText}>Ubah Waktu</Text>
+                </TouchableOpacity>
+              </View>
             </View>
             <StatusBadge
               label={FURNITURE_STATUS_LABELS[order.status]}
@@ -512,6 +550,36 @@ export default function FurnitureOrderDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={deadlineModalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setDeadlineModalOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>Ubah Perkiraan Selesai</Text>
+            <DeadlinePicker value={draftDeadline} onChange={setDraftDeadline} />
+            <View style={styles.modalActions}>
+              <PrimaryButton
+                title="Batal"
+                variant="outline"
+                onPress={() => setDeadlineModalOpen(false)}
+                disabled={submitting}
+                style={{ flex: 1 }}
+              />
+              <PrimaryButton
+                title="Simpan Waktu"
+                variant="primary"
+                loading={submitting}
+                onPress={() => void handleSaveDeadline()}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -555,6 +623,27 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: TYPOGRAPHY.label,
     color: COLORS.textMuted,
+  },
+  deadlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 2,
+  },
+  editDeadlinePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: SIZING.radiusPill,
+    backgroundColor: COLORS.oceanLight,
+  },
+  editDeadlineText: {
+    fontSize: 12,
+    fontFamily: FONTS.bold,
+    color: COLORS.ocean,
   },
   financeGrid: {
     backgroundColor: COLORS.surfaceSubtle,

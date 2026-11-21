@@ -1,4 +1,8 @@
 import {
+  CASH_FLOW_CATEGORY_LABELS,
+  CashFlow,
+  CashFlowCategory,
+  CashFlowSummary,
   FURNITURE_PAYMENT_TYPE_LABELS,
   FURNITURE_STATUS_LABELS,
   FurnitureOrderDetail,
@@ -9,6 +13,7 @@ import {
   formatDateIndo,
   formatDateTimeIndo,
   formatDimension,
+  formatMonthYearIndo,
   formatRupiah,
   formatVolumeM3,
 } from './formatters';
@@ -212,7 +217,8 @@ export function buildFurnitureOrderWhatsAppText(
     `Pelanggan: ${order.customer_name}`,
     `Pesanan: *${order.item_name}*`,
     `Status Pengerjaan: *${statusText}*`,
-    `Target Selesai: ${formatDateIndo(order.deadline_date)}`,
+    `Perkiraan Selesai: *${formatDateIndo(order.deadline_date)}*`,
+    `_(Waktu pengerjaan merupakan perkiraan dan dapat menyesuaikan kondisi bengkel)_`,
     `--------------------------------`,
     `Harga Total: *${formatRupiah(order.total_price)}*`,
     `Sudah Dibayar: ${formatRupiah(order.paid_amount)}`,
@@ -266,7 +272,9 @@ export function buildFurnitureOrderReceiptHtml(
 <head>
 <meta charset="utf-8" />
 <style>
-  body { font-family: Arial, sans-serif; color: #222831; padding: 24px; font-size: 13px; background: #F7F9FB; }
+  * { box-sizing: border-box; }
+  @page { margin: 16px; }
+  body { font-family: Arial, sans-serif; color: #222831; padding: 20px; font-size: 13px; background: #F7F9FB; }
   .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0A3C6E; padding-bottom: 12px; margin-bottom: 16px; }
   .title { font-size: 20px; font-weight: bold; color: #0A3C6E; margin: 0; }
   .subtitle { font-size: 13px; color: #5A6675; margin-top: 4px; }
@@ -274,6 +282,7 @@ export function buildFurnitureOrderReceiptHtml(
     isPaid ? '#EAF7EF' : '#E8F4FC'
   }; color: ${isPaid ? '#15803D' : '#0A3C6E'}; }
   .box { border: 1px solid #E6ECF2; border-radius: 12px; padding: 14px; margin-bottom: 16px; background: #FFFFFF; line-height: 1.7; }
+  .note-muted { font-size: 11px; color: #5A6675; font-style: italic; margin-top: 2px; margin-bottom: 6px; }
   table { width: 100%; border-collapse: collapse; margin-top: 8px; background: #FFFFFF; }
   th { background: #EFF3F7; text-align: left; padding: 8px; border-bottom: 2px solid #E6ECF2; font-size: 12px; color: #222831; }
   td { padding: 8px; border-bottom: 1px solid #EFF3F7; }
@@ -304,9 +313,10 @@ export function buildFurnitureOrderReceiptHtml(
     <div><strong>Status Pengerjaan:</strong> ${escapeHtml(
       FURNITURE_STATUS_LABELS[order.status]
     )}</div>
-    <div><strong>Target Selesai:</strong> ${escapeHtml(
+    <div><strong>Perkiraan Selesai:</strong> ${escapeHtml(
       formatDateIndo(order.deadline_date)
     )}</div>
+    <div class="note-muted">*Waktu pengerjaan merupakan perkiraan dan dapat berubah menyesuaikan kondisi bengkel.</div>
     <div><strong>Harga Total:</strong> ${escapeHtml(formatRupiah(order.total_price))}</div>
     <div><strong>Sudah Dibayar:</strong> ${escapeHtml(formatRupiah(order.paid_amount))}</div>
     <div><strong>Sisa Tagihan:</strong> <span style="color:${
@@ -333,4 +343,226 @@ export function buildFurnitureOrderReceiptHtml(
   <div class="footer">Dicetak dari aplikasi BukuKayu</div>
 </body>
 </html>`;
+}
+
+export interface MonthlyCashFlowExportData {
+  workshopName: string;
+  year: number;
+  monthIndex: number;
+  rows: CashFlow[];
+  summary: CashFlowSummary;
+  categoryTotals: Record<CashFlowCategory, number>;
+}
+
+const ORDERED_CATEGORIES: readonly CashFlowCategory[] = [
+  'WOOD_SALE',
+  'FURNITURE_PAYMENT',
+  'MATERIAL_BUY',
+  'LABOR_WAGE',
+  'OPERATIONAL',
+  'PERSONAL_DRAW',
+];
+
+export function buildMonthlyCashFlowReportHtml(
+  data: MonthlyCashFlowExportData
+): string {
+  const periodLabel = formatMonthYearIndo(data.year, data.monthIndex);
+
+  const categoryRows = ORDERED_CATEGORIES.map((cat) => {
+    const total = data.categoryTotals[cat] ?? 0;
+    const isIncome = cat === 'WOOD_SALE' || cat === 'FURNITURE_PAYMENT';
+    return `
+      <tr>
+        <td>${escapeHtml(CASH_FLOW_CATEGORY_LABELS[cat])}</td>
+        <td class="right" style="color:${
+          isIncome ? '#15803D' : '#C0392B'
+        };font-weight:bold;">
+          ${isIncome ? '+' : '-'}${escapeHtml(formatRupiah(total))}
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  const transactionRows =
+    data.rows.length > 0
+      ? data.rows
+          .map((row, idx) => {
+            const isIn = row.type === 'IN';
+            return `
+            <tr>
+              <td>${idx + 1}</td>
+              <td>${escapeHtml(formatDateTimeIndo(row.created_at))}</td>
+              <td>${escapeHtml(CASH_FLOW_CATEGORY_LABELS[row.category])}</td>
+              <td>
+                <strong>${escapeHtml(row.description)}</strong>
+                ${
+                  row.reference_id
+                    ? `<br/><span class="muted">${escapeHtml(row.reference_id)}</span>`
+                    : ''
+                }
+              </td>
+              <td class="right" style="color:#15803D;font-weight:bold;">
+                ${isIn ? escapeHtml(formatRupiah(row.amount)) : '-'}
+              </td>
+              <td class="right" style="color:#C0392B;font-weight:bold;">
+                ${!isIn ? escapeHtml(formatRupiah(row.amount)) : '-'}
+              </td>
+            </tr>
+          `;
+          })
+          .join('')
+      : `<tr><td colspan="6" style="text-align:center;color:#5A6675;">Belum ada transaksi di bulan ${escapeHtml(
+          periodLabel
+        )}.</td></tr>`;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; }
+  @page { margin: 16px; }
+  body { font-family: Arial, sans-serif; color: #222831; padding: 20px; font-size: 12px; background: #F7F9FB; }
+  .header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #0A3C6E; padding-bottom: 12px; margin-bottom: 16px; }
+  .title { font-size: 20px; font-weight: bold; color: #0A3C6E; margin: 0; }
+  .subtitle { font-size: 13px; color: #5A6675; margin-top: 4px; }
+  .period-pill { background: #EAF2FA; color: #0A3C6E; font-weight: bold; padding: 6px 14px; border-radius: 999px; font-size: 12px; }
+  .grid { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .metric { flex: 1; min-width: 120px; background: #FFFFFF; border: 1px solid #E6ECF2; border-radius: 12px; padding: 10px 12px; }
+  .metric-label { font-size: 11px; color: #5A6675; margin-bottom: 4px; }
+  .metric-val { font-size: 15px; font-weight: bold; }
+  h3 { font-size: 14px; color: #0A3C6E; margin: 16px 0 8px; }
+  table { width: 100%; border-collapse: collapse; background: #FFFFFF; margin-bottom: 14px; }
+  th { background: #EFF3F7; text-align: left; padding: 8px; border-bottom: 2px solid #E6ECF2; font-size: 11px; color: #222831; }
+  td { padding: 7px 8px; border-bottom: 1px solid #EFF3F7; vertical-align: top; }
+  .right { text-align: right; }
+  .muted { color: #8B97A6; font-size: 10px; }
+  .footer { margin-top: 20px; font-size: 11px; color: #8B97A6; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <p class="title">${escapeHtml(data.workshopName)}</p>
+      <div class="subtitle">Laporan Catatan Keuangan Bulanan</div>
+    </div>
+    <div class="period-pill">${escapeHtml(periodLabel)}</div>
+  </div>
+
+  <div class="grid">
+    <div class="metric">
+      <div class="metric-label">Total Uang Masuk</div>
+      <div class="metric-val" style="color:#15803D;">+${escapeHtml(
+        formatRupiah(data.summary.totalIn)
+      )}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Pengeluaran Usaha</div>
+      <div class="metric-val" style="color:#C0392B;">-${escapeHtml(
+        formatRupiah(data.summary.businessOut)
+      )}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Sisa Bersih Usaha</div>
+      <div class="metric-val" style="color:${
+        data.summary.businessNet >= 0 ? '#15803D' : '#C0392B'
+      };">${escapeHtml(formatRupiah(data.summary.businessNet))}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Ambil Pribadi (Prive)</div>
+      <div class="metric-val" style="color:#1783C1;">-${escapeHtml(
+        formatRupiah(data.summary.personalDrawOut)
+      )}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Sisa Uang di Kas</div>
+      <div class="metric-val" style="color:#0A3C6E;">${escapeHtml(
+        formatRupiah(data.summary.cashBalance)
+      )}</div>
+    </div>
+  </div>
+
+  <h3>Ringkasan per Kategori</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Kategori</th>
+        <th class="right">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${categoryRows}
+    </tbody>
+  </table>
+
+  <h3>Rincian Catatan Keuangan (${data.rows.length} transaksi)</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>No</th>
+        <th>Waktu</th>
+        <th>Kategori</th>
+        <th>Keterangan</th>
+        <th class="right">Uang Masuk</th>
+        <th class="right">Uang Keluar</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${transactionRows}
+    </tbody>
+  </table>
+
+  <div class="footer">Dicetak dari aplikasi BukuKayu</div>
+</body>
+</html>`;
+}
+
+function escapeCsvCell(value: string | number): string {
+  const str = String(value);
+  if (/[",\n\r]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+export function buildMonthlyCashFlowCsv(
+  data: MonthlyCashFlowExportData
+): string {
+  const periodLabel = formatMonthYearIndo(data.year, data.monthIndex);
+  const lines: string[] = [
+    ['Laporan Catatan Keuangan Bulanan', data.workshopName].map(escapeCsvCell).join(','),
+    ['Bulan', periodLabel].map(escapeCsvCell).join(','),
+    '',
+    ['No', 'Waktu', 'Jenis', 'Kategori', 'Keterangan', 'Referensi', 'Uang Masuk', 'Uang Keluar']
+      .map(escapeCsvCell)
+      .join(','),
+  ];
+
+  data.rows.forEach((row, idx) => {
+    const isIn = row.type === 'IN';
+    lines.push(
+      [
+        idx + 1,
+        formatDateTimeIndo(row.created_at),
+        isIn ? 'Uang Masuk' : 'Uang Keluar',
+        CASH_FLOW_CATEGORY_LABELS[row.category],
+        row.description,
+        row.reference_id || '',
+        isIn ? row.amount : 0,
+        !isIn ? row.amount : 0,
+      ]
+        .map(escapeCsvCell)
+        .join(',')
+    );
+  });
+
+  lines.push('');
+  lines.push(['Total Uang Masuk', data.summary.totalIn].map(escapeCsvCell).join(','));
+  lines.push(['Pengeluaran Usaha', data.summary.businessOut].map(escapeCsvCell).join(','));
+  lines.push(['Sisa Bersih Usaha', data.summary.businessNet].map(escapeCsvCell).join(','));
+  lines.push(['Ambil Pribadi (Prive)', data.summary.personalDrawOut].map(escapeCsvCell).join(','));
+  lines.push(['Sisa Uang di Kas', data.summary.cashBalance].map(escapeCsvCell).join(','));
+
+  // UTF-8 BOM agar Excel langsung membaca karakter Indonesia secara rapi
+  return `\uFEFF${lines.join('\r\n')}`;
 }

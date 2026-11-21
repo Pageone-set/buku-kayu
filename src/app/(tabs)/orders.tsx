@@ -139,7 +139,7 @@ export default function OrdersListScreen() {
               <View style={styles.cardTop}>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={styles.orderCode}>
-                    {item.order_code} • Target {formatDateIndo(item.deadline_date)}
+                    {item.order_code} • Perkiraan {formatDateIndo(item.deadline_date)}
                   </Text>
                   <Text style={styles.itemName}>{item.item_name}</Text>
                   <Text style={styles.customerName}>{item.customer_name}</Text>

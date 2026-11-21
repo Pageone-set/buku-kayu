@@ -1,3 +1,4 @@
+import { File, Paths } from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Linking, Share } from 'react-native';
@@ -56,4 +57,33 @@ export async function shareHtmlAsPdf(
     dialogTitle,
     UTI: 'com.adobe.pdf',
   });
+}
+
+export async function shareCsvFile(
+  csvContent: string,
+  fileName: string,
+  dialogTitle: string
+): Promise<void> {
+  const canShare = await Sharing.isAvailableAsync();
+  if (!canShare) {
+    throw new Error('Fitur bagikan file tidak tersedia di perangkat ini.');
+  }
+
+  const csvFile = new File(Paths.cache, fileName);
+  try {
+    csvFile.create({ intermediates: true, overwrite: true });
+    await csvFile.write(csvContent);
+    await Sharing.shareAsync(csvFile.uri, {
+      mimeType: 'text/csv',
+      dialogTitle,
+    });
+  } finally {
+    if (csvFile.exists) {
+      try {
+        csvFile.delete();
+      } catch {
+        // ignore cleanup failure
+      }
+    }
+  }
 }

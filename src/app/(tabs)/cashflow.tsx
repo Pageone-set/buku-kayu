@@ -22,6 +22,7 @@ import {
   CashFlowPeriod,
   addManualCashFlow,
   deleteCashFlow,
+  getMonthlyCashFlowReport,
   listCashFlows,
 } from '../../db/cashFlowRepo';
 import { useAppStore } from '../../store/useAppStore';
@@ -33,7 +34,16 @@ import {
   CashFlowSummary,
   CashFlowType,
 } from '../../types/domain';
-import { formatDateTimeIndo, formatRupiah } from '../../utils/formatters';
+import {
+  formatDateTimeIndo,
+  formatMonthYearIndo,
+  formatRupiah,
+} from '../../utils/formatters';
+import {
+  buildMonthlyCashFlowCsv,
+  buildMonthlyCashFlowReportHtml,
+} from '../../utils/receiptGenerator';
+import { shareCsvFile, shareHtmlAsPdf } from '../../utils/shareReceipt';
 
 const PERIOD_OPTIONS: readonly { label: string; value: CashFlowPeriod }[] = [
   { label: 'Hari Ini', value: 'TODAY' },
@@ -70,6 +80,7 @@ const INITIAL_SUMMARY: CashFlowSummary = {
 };
 
 export default function CashFlowScreen() {
+  const workshopName = useAppStore((s) => s.workshopName);
   const dbRevision = useAppStore((s) => s.dbRevision);
   const bumpDbRevision = useAppStore((s) => s.bumpDbRevision);
 
@@ -87,6 +98,17 @@ export default function CashFlowScreen() {
   const [entryDesc, setEntryDesc] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<CashFlow | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const nowDate = useMemo(() => new Date(), []);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportYear, setExportYear] = useState(nowDate.getFullYear());
+  const [exportMonthIndex, setExportMonthIndex] = useState(nowDate.getMonth());
+  const [exportPreviewCount, setExportPreviewCount] = useState(0);
+  const [exportPreviewSummary, setExportPreviewSummary] =
+    useState<CashFlowSummary>(INITIAL_SUMMARY);
+  const [exportingKind, setExportingKind] = useState<'PDF' | 'CSV' | null>(
+    null
+  );
 
   const loadCashFlows = useCallback(async () => {
     try {
@@ -174,17 +196,94 @@ export default function CashFlowScreen() {
     }
   };
 
+  const loadMonthlyPreview = useCallback(async () => {
+    if (!exportModalOpen) {
+      return;
+    }
+    try {
+      const report = await getMonthlyCashFlowReport(
+        exportYear,
+        exportMonthIndex
+      );
+      setExportPreviewCount(report.rows.length);
+      setExportPreviewSummary(report.summary);
+    } catch {
+      // ignore transient error
+    }
+  }, [exportModalOpen, exportMonthIndex, exportYear]);
+
+  useEffect(() => {
+    void loadMonthlyPreview();
+  }, [loadMonthlyPreview]);
+
+  const shiftExportMonth = (delta: number) => {
+    const shifted = new Date(exportYear, exportMonthIndex + delta, 1);
+    setExportYear(shifted.getFullYear());
+    setExportMonthIndex(shifted.getMonth());
+  };
+
+  const handleExportMonthly = async (kind: 'PDF' | 'CSV') => {
+    setExportingKind(kind);
+    try {
+      const report = await getMonthlyCashFlowReport(
+        exportYear,
+        exportMonthIndex
+      );
+      const exportData = {
+        workshopName,
+        year: exportYear,
+        monthIndex: exportMonthIndex,
+        rows: report.rows,
+        summary: report.summary,
+        categoryTotals: report.categoryTotals,
+      };
+      const periodLabel = formatMonthYearIndo(exportYear, exportMonthIndex);
+
+      if (kind === 'PDF') {
+        const html = buildMonthlyCashFlowReportHtml(exportData);
+        await shareHtmlAsPdf(html, `Catatan Keuangan ${periodLabel}`);
+      } else {
+        const csv = buildMonthlyCashFlowCsv(exportData);
+        await shareCsvFile(
+          csv,
+          `BukuKayu_Keuangan_${report.monthPrefix}.csv`,
+          `Catatan Keuangan Excel/CSV ${periodLabel}`
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Gagal Ekspor Catatan',
+        error instanceof Error
+          ? error.message
+          : 'Terjadi kendala saat menyiapkan file laporan.'
+      );
+    } finally {
+      setExportingKind(null);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.topSection}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>Buku Kas Harian</Text>
-          <PrimaryButton
-            title="+ Catat Kas"
-            variant="primary"
-            onPress={openNewEntryModal}
-            style={styles.addBtn}
-          />
+          <View style={styles.headerBtns}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setExportModalOpen(true)}
+              style={styles.exportPillBtn}
+              accessibilityLabel="Ekspor Catatan Keuangan Bulanan"
+            >
+              <Feather name="download" size={16} color={COLORS.navy} />
+              <Text style={styles.exportPillText}>Ekspor</Text>
+            </TouchableOpacity>
+            <PrimaryButton
+              title="+ Catat Kas"
+              variant="primary"
+              onPress={openNewEntryModal}
+              style={styles.addBtn}
+            />
+          </View>
         </View>
 
         <ChipSelector
@@ -416,6 +515,136 @@ export default function CashFlowScreen() {
         onConfirm={() => void handleConfirmDelete()}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      <Modal
+        visible={exportModalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setExportModalOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalSheet}>
+            <Text style={styles.modalTitle}>
+              Ekspor Catatan Keuangan Bulanan
+            </Text>
+
+            <View style={styles.monthPickerRow}>
+              <TouchableOpacity
+                activeOpacity={0.78}
+                onPress={() => shiftExportMonth(-1)}
+                style={styles.monthArrowBtn}
+                accessibilityLabel="Bulan sebelumnya"
+              >
+                <Feather name="chevron-left" size={20} color={COLORS.navy} />
+              </TouchableOpacity>
+              <Text style={styles.monthPickerTitle}>
+                {formatMonthYearIndo(exportYear, exportMonthIndex)}
+              </Text>
+              <TouchableOpacity
+                activeOpacity={0.78}
+                onPress={() => shiftExportMonth(1)}
+                style={styles.monthArrowBtn}
+                accessibilityLabel="Bulan berikutnya"
+              >
+                <Feather name="chevron-right" size={20} color={COLORS.navy} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.monthShortcutRow}>
+              <TouchableOpacity
+                activeOpacity={0.78}
+                onPress={() => {
+                  const now = new Date();
+                  setExportYear(now.getFullYear());
+                  setExportMonthIndex(now.getMonth());
+                }}
+                style={styles.monthShortcutChip}
+              >
+                <Text style={styles.monthShortcutText}>Bulan Ini</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.78}
+                onPress={() => {
+                  const now = new Date();
+                  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                  setExportYear(prev.getFullYear());
+                  setExportMonthIndex(prev.getMonth());
+                }}
+                style={styles.monthShortcutChip}
+              >
+                <Text style={styles.monthShortcutText}>Bulan Lalu</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.exportPreviewBox}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Jumlah Catatan</Text>
+                <Text style={styles.exportCountVal}>
+                  {exportPreviewCount} transaksi
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Uang Masuk</Text>
+                <Text style={[styles.summaryVal, { color: COLORS.green }]}>
+                  +{formatRupiah(exportPreviewSummary.totalIn)}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Pengeluaran Usaha</Text>
+                <Text style={[styles.summaryVal, { color: COLORS.red }]}>
+                  -{formatRupiah(exportPreviewSummary.businessOut)}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.priveLabel}>Ambil Pribadi (Prive)</Text>
+                <Text style={styles.priveVal}>
+                  -{formatRupiah(exportPreviewSummary.personalDrawOut)}
+                </Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.summaryRow}>
+                <Text
+                  style={[styles.summaryLabel, { fontFamily: FONTS.extraBold }]}
+                >
+                  Sisa Uang di Kas
+                </Text>
+                <Text style={styles.cashBalanceVal}>
+                  {formatRupiah(exportPreviewSummary.cashBalance)}
+                </Text>
+              </View>
+            </View>
+
+            <PrimaryButton
+              title="Ekspor Laporan PDF (Cetak / WA)"
+              variant="primary"
+              loading={exportingKind === 'PDF'}
+              disabled={exportingKind !== null}
+              onPress={() => void handleExportMonthly('PDF')}
+              icon={
+                <Feather name="file-text" size={18} color={COLORS.textOnDark} />
+              }
+            />
+
+            <PrimaryButton
+              title="Ekspor File Excel / CSV (.csv)"
+              variant="ocean"
+              loading={exportingKind === 'CSV'}
+              disabled={exportingKind !== null}
+              onPress={() => void handleExportMonthly('CSV')}
+              icon={
+                <Feather name="download" size={18} color={COLORS.textOnDark} />
+              }
+            />
+
+            <PrimaryButton
+              title="Tutup"
+              variant="outline"
+              disabled={exportingKind !== null}
+              onPress={() => setExportModalOpen(false)}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -436,13 +665,33 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 10,
   },
+  headerBtns: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  exportPillBtn: {
+    minHeight: 46,
+    paddingHorizontal: 14,
+    borderRadius: SIZING.radiusPill,
+    backgroundColor: COLORS.navyLight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  exportPillText: {
+    fontSize: 13,
+    fontFamily: FONTS.bold,
+    color: COLORS.navy,
+  },
   title: {
+    flex: 1,
     fontSize: TYPOGRAPHY.title,
     fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
   },
   addBtn: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
   },
   summaryCard: {
     backgroundColor: COLORS.surface,
@@ -602,5 +851,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginTop: 6,
+  },
+  monthPickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  monthArrowBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.surfaceSubtle,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  monthPickerTitle: {
+    fontSize: TYPOGRAPHY.subhead,
+    fontFamily: FONTS.extraBold,
+    color: COLORS.textPrimary,
+  },
+  monthShortcutRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  monthShortcutChip: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: SIZING.radiusPill,
+    backgroundColor: COLORS.oceanLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  monthShortcutText: {
+    fontSize: 13,
+    fontFamily: FONTS.bold,
+    color: COLORS.ocean,
+  },
+  exportPreviewBox: {
+    backgroundColor: COLORS.surfaceSubtle,
+    borderRadius: SIZING.radiusMd,
+    padding: 12,
+    gap: 6,
+  },
+  exportCountVal: {
+    fontSize: TYPOGRAPHY.label,
+    fontFamily: FONTS.extraBold,
+    color: COLORS.navy,
   },
 });

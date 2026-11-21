@@ -13,6 +13,7 @@ import { calculateRemainingAmount } from '../utils/cubicCalculator';
 import {
   generateInvoiceNumber,
   getLocalTimestampIso,
+  isValidIsoDateString,
 } from '../utils/formatters';
 import { getDatabase, runInTransaction } from './database';
 
@@ -297,5 +298,31 @@ export async function addFurnitureCost(
         now
       );
     }
+  });
+}
+
+export async function updateFurnitureOrderDeadline(
+  orderId: number,
+  deadlineDate: string
+): Promise<void> {
+  const cleanDate = deadlineDate.trim();
+  if (!isValidIsoDateString(cleanDate)) {
+    throw new Error('Format tanggal target selesai harus valid (YYYY-MM-DD).');
+  }
+
+  await runInTransaction(async (txn) => {
+    const order = await txn.getFirstAsync<FurnitureOrder>(
+      'SELECT id FROM furniture_orders WHERE id = ?',
+      orderId
+    );
+    if (!order) {
+      throw new Error('Orderan furniture tidak ditemukan.');
+    }
+
+    await txn.runAsync(
+      'UPDATE furniture_orders SET deadline_date = ? WHERE id = ?',
+      cleanDate,
+      orderId
+    );
   });
 }

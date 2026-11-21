@@ -1,4 +1,5 @@
 import {
+  calculateDaysFromToday,
   formatBackupRelativeTime,
   formatBytesSize,
   formatDateIndo,
@@ -6,6 +7,8 @@ import {
   formatRupiah,
   formatVolumeM3,
   generateInvoiceNumber,
+  getOffsetDateByDuration,
+  isValidIsoDateString,
   normalizeWhatsAppPhone,
   parseRupiahInput,
 } from '../src/utils/formatters';
@@ -50,5 +53,25 @@ describe('formatters', () => {
   test('formatDateIndo dan formatBackupRelativeTime memformat tanggal lokal', () => {
     expect(formatDateIndo('2026-11-21')).toBe('21 Nov 2026');
     expect(formatBackupRelativeTime(null)).toBe('Belum pernah dicadangkan');
+  });
+
+  test('getOffsetDateByDuration mendukung hari, minggu, dan bulan termasuk batas akhir bulan', () => {
+    const base = new Date(2026, 0, 31, 10, 0, 0); // 31 Jan 2026
+    expect(getOffsetDateByDuration(45, 'DAYS', base)).toBe('2026-03-17');
+    expect(getOffsetDateByDuration(6, 'WEEKS', base)).toBe('2026-03-14');
+    expect(getOffsetDateByDuration(1, 'MONTHS', base)).toBe('2026-02-28');
+    expect(getOffsetDateByDuration(3, 'MONTHS', base)).toBe('2026-04-30');
+  });
+
+  test('isValidIsoDateString dan calculateDaysFromToday memvalidasi tanggal secara akurat', () => {
+    expect(isValidIsoDateString('2026-12-22')).toBe(true);
+    expect(isValidIsoDateString('2026-02-30')).toBe(false);
+    expect(isValidIsoDateString('22-12-2026')).toBe(false);
+
+    const today = new Date(2026, 10, 22, 15, 30, 0); // 22 Nov 2026
+    expect(calculateDaysFromToday('2026-11-22', today)).toBe(0);
+    expect(calculateDaysFromToday('2027-01-06', today)).toBe(45);
+    expect(calculateDaysFromToday('2026-11-20', today)).toBe(-2);
+    expect(calculateDaysFromToday('2026-02-30', today)).toBeNull();
   });
 });

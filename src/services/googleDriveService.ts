@@ -230,11 +230,9 @@ export async function findBackupFile(): Promise<DriveBackupFileInfo | null> {
   };
 }
 
-export async function backupDatabaseToDrive(): Promise<{
-  fileId: string;
-  backupTimeIso: string;
-  sizeBytes: number;
-}> {
+export async function createDatabaseSnapshotFile(
+  fileName = `bukukayu_snapshot_${Date.now()}.db`
+): Promise<File> {
   const { dbFile } = await resolveLiveDatabaseFiles();
 
   // Pastikan seluruh transaksi di WAL masuk ke file .db utama sebelum dibaca
@@ -244,13 +242,89 @@ export async function backupDatabaseToDrive(): Promise<{
     throw new Error('File database lokal tidak ditemukan.');
   }
 
-  const snapshotFile = new File(
+  const snapshotFile = new File(Paths.cache, fileName);
+  await dbFile.copy(snapshotFile, { overwrite: true });
+  return snapshotFile;
+}
+
+export async function replaceDatabaseWithFile(sourceFile: File): Promise<void> {
+  const bytes = await sourceFile.bytes();
+  if (!isValidSqliteBytes(bytes)) {
+    throw new Error(
+      'File cadangan tidak valid atau rusak (bukan database SQLite BukuKayu).'
+    );
+  }
+
+  const { dbDir, dbFile, walFile, shmFile } = await resolveLiveDatabaseFiles();
+  const rollbackFile = new File(
     Paths.cache,
-    `bukukayu_snapshot_${Date.now()}.db`
+    `bukukayu_rollback_${Date.now()}.db`
   );
 
   try {
-    await dbFile.copy(snapshotFile, { overwrite: true });
+    if (dbFile.exists) {
+      await checkpointWal().catch(() => undefined);
+      await dbFile.copy(rollbackFile, { overwrite: true });
+    }
+
+    await closeDatabase();
+
+    try {
+      if (!dbDir.exists) {
+        dbDir.create({ intermediates: true, idempotent: true });
+      }
+      if (walFile.exists) {
+        walFile.delete();
+      }
+      if (shmFile.exists) {
+        shmFile.delete();
+      }
+      await sourceFile.copy(dbFile, { overwrite: true });
+
+      const reopened = await reopenDatabase();
+      await reopened.getFirstAsync<{ cnt: number }>(
+        'SELECT COUNT(*) AS cnt FROM wood_stocks'
+      );
+    } catch (restoreErr) {
+      if (rollbackFile.exists) {
+        if (walFile.exists) {
+          try {
+            walFile.delete();
+          } catch {
+            // ignore
+          }
+        }
+        if (shmFile.exists) {
+          try {
+            shmFile.delete();
+          } catch {
+            // ignore
+          }
+        }
+        await rollbackFile.copy(dbFile, { overwrite: true }).catch(() => undefined);
+      }
+      await reopenDatabase().catch(() => undefined);
+      throw restoreErr;
+    }
+  } finally {
+    if (rollbackFile.exists) {
+      try {
+        rollbackFile.delete();
+      } catch {
+        // ignore
+      }
+    }
+  }
+}
+
+export async function backupDatabaseToDrive(): Promise<{
+  fileId: string;
+  backupTimeIso: string;
+  sizeBytes: number;
+}> {
+  const snapshotFile = await createDatabaseSnapshotFile();
+
+  try {
     const base64Data = await snapshotFile.base64();
     const sizeBytes = snapshotFile.size || 0;
 
@@ -311,14 +385,9 @@ export async function restoreDatabaseFromDrive(
     throw new Error('File cadangan BukuKayu belum ditemukan di Google Drive akun ini.');
   }
 
-  const { dbDir, dbFile, walFile, shmFile } = await resolveLiveDatabaseFiles();
   const downloadedFile = new File(
     Paths.cache,
     `bukukayu_restore_${Date.now()}.db`
-  );
-  const rollbackFile = new File(
-    Paths.cache,
-    `bukukayu_rollback_${Date.now()}.db`
   );
 
   try {
@@ -341,70 +410,13 @@ export async function restoreDatabaseFromDrive(
       });
     }
 
-    const bytes = await resultFile.bytes();
-    if (!isValidSqliteBytes(bytes)) {
-      throw new Error(
-        'File cadangan di Google Drive tidak valid atau rusak (bukan database SQLite).'
-      );
-    }
-
-    if (dbFile.exists) {
-      await checkpointWal().catch(() => undefined);
-      await dbFile.copy(rollbackFile, { overwrite: true });
-    }
-
-    await closeDatabase();
-
-    try {
-      if (!dbDir.exists) {
-        dbDir.create({ intermediates: true, idempotent: true });
-      }
-      if (walFile.exists) {
-        walFile.delete();
-      }
-      if (shmFile.exists) {
-        shmFile.delete();
-      }
-      await resultFile.copy(dbFile, { overwrite: true });
-
-      const reopened = await reopenDatabase();
-      await reopened.getFirstAsync<{ cnt: number }>(
-        'SELECT COUNT(*) AS cnt FROM wood_stocks'
-      );
-    } catch (restoreErr) {
-      if (rollbackFile.exists) {
-        if (walFile.exists) {
-          try {
-            walFile.delete();
-          } catch {
-            // ignore
-          }
-        }
-        if (shmFile.exists) {
-          try {
-            shmFile.delete();
-          } catch {
-            // ignore
-          }
-        }
-        await rollbackFile.copy(dbFile, { overwrite: true }).catch(() => undefined);
-      }
-      await reopenDatabase().catch(() => undefined);
-      throw restoreErr;
-    }
+    await replaceDatabaseWithFile(resultFile);
 
     return { restoredFromTime: backupInfo.modifiedTime };
   } finally {
     if (downloadedFile.exists) {
       try {
         downloadedFile.delete();
-      } catch {
-        // ignore
-      }
-    }
-    if (rollbackFile.exists) {
-      try {
-        rollbackFile.delete();
       } catch {
         // ignore
       }
