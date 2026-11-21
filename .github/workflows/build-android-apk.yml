@@ -110,21 +110,40 @@ jobs:
         shell: bash
         run: |
           APK_PATH="${{ steps.build.outputs.apk_path }}"
+          VARIANT="${{ steps.build.outputs.variant }}"
           APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
-          SHA1=$(keytool -printcert -jarfile "$APK_PATH" 2>/dev/null | grep -m1 "SHA1:" | sed 's/.*SHA1:[[:space:]]*//' || true)
+          BUILD_TOOLS_DIR=$(ls -d "$ANDROID_HOME"/build-tools/* 2>/dev/null | sort -V | tail -n 1 || true)
 
-          {
-            echo "## Build APK BukuKayu Berhasil"
-            echo ""
-            echo "| Keterangan | Nilai |"
-            echo "| :--- | :--- |"
-            echo "| Varian | \`${{ steps.build.outputs.variant }}\` |"
-            echo "| File APK | \`${APK_PATH}\` |"
-            echo "| Ukuran | ${APK_SIZE} |"
-            echo "| SHA-1 Sertifikat | \`${SHA1:-Tidak terbaca}\` |"
-            echo ""
-            echo "> **Info Google Drive Backup:** Salin nilai **SHA-1 Sertifikat** di atas ke **Google Cloud Console → Credentials → Android OAuth Client ID** (`com.bukukayu.app`) agar Login Google Drive berfungsi di APK ini."
-          } >> "$GITHUB_STEP_SUMMARY"
+          SHA1=""
+          if [ -n "$BUILD_TOOLS_DIR" ] && [ -x "$BUILD_TOOLS_DIR/apksigner" ]; then
+            RAW_SHA1=$("$BUILD_TOOLS_DIR/apksigner" verify --print-certs "$APK_PATH" 2>/dev/null | grep -m1 "SHA-1 digest:" | sed 's/.*SHA-1 digest:[[:space:]]*//' | tr '[:lower:]' '[:upper:]' || true)
+            if [ -n "$RAW_SHA1" ]; then
+              SHA1=$(echo "$RAW_SHA1" | sed 's/\(..\)/\1:/g; s/:$//')
+            fi
+          fi
+          if [ -z "$SHA1" ]; then
+            SHA1=$(keytool -printcert -jarfile "$APK_PATH" 2>/dev/null | grep -m1 "SHA1:" | sed 's/.*SHA1:[[:space:]]*//' | tr '[:lower:]' '[:upper:]' || true)
+          fi
+
+          echo "================================================"
+          echo "Package Name : com.bukukayu.app"
+          echo "File APK     : ${APK_PATH}"
+          echo "Ukuran       : ${APK_SIZE}"
+          echo "SHA-1        : ${SHA1:-Tidak terbaca}"
+          echo "================================================"
+
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Build APK BukuKayu Berhasil
+
+          | Keterangan | Nilai |
+          | :--- | :--- |
+          | Varian | \`${VARIANT}\` |
+          | File APK | \`${APK_PATH}\` |
+          | Ukuran | ${APK_SIZE} |
+          | SHA-1 Sertifikat | \`${SHA1:-Tidak terbaca}\` |
+
+          > **Info Google Drive Backup:** Salin nilai **SHA-1 Sertifikat** di atas (format \`XX:XX:...\`) ke **Google Cloud Console → Credentials → Android OAuth Client ID** (\`com.bukukayu.app\`) agar Login Google Drive berfungsi di APK ini.
+          EOF
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
