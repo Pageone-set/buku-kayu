@@ -8,12 +8,21 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef } from 'react';
+import {
+  ActivityIndicator,
+  AppState,
+  AppStateStatus,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AppLockScreen } from '../components/ui/AppLockScreen';
 import { PrimaryButton } from '../components/ui/PrimaryButton';
 import { getAppSettings } from '../db/appMetaRepo';
 import { initDatabase } from '../db/database';
+import { loadAppLockConfig } from '../services/appLockService';
 import {
   checkCloudBackupExists,
   subscribeWifiAutoBackup,
@@ -24,6 +33,7 @@ import {
 } from '../services/googleDriveService';
 import { useAppStore } from '../store/useAppStore';
 import { COLORS, FONTS, TYPOGRAPHY } from '../theme/tokens';
+import { shouldAutoLock } from '../utils/pinLockHelpers';
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -36,22 +46,35 @@ export default function RootLayout() {
 
   const isDbReady = useAppStore((s) => s.isDbReady);
   const dbError = useAppStore((s) => s.dbError);
+  const isAppLocked = useAppStore((s) => s.isAppLocked);
   const setDbReady = useAppStore((s) => s.setDbReady);
   const setDbError = useAppStore((s) => s.setDbError);
   const setWorkshopName = useAppStore((s) => s.setWorkshopName);
   const setLastBackupAt = useAppStore((s) => s.setLastBackupAt);
   const setAutoBackupWifi = useAppStore((s) => s.setAutoBackupWifi);
   const setGoogleUser = useAppStore((s) => s.setGoogleUser);
+  const setAppLockConfig = useAppStore((s) => s.setAppLockConfig);
+  const setIsAppLocked = useAppStore((s) => s.setIsAppLocked);
+
+  const prevAppStateRef = useRef<string | null | undefined>(
+    AppState.currentState
+  );
+  const backgroundedAtRef = useRef<number | null>(null);
 
   const bootstrap = useCallback(async () => {
     setDbError(null);
     try {
       configureGoogleSignIn();
       await initDatabase();
-      const settings = await getAppSettings();
+      const [settings, lockConfig] = await Promise.all([
+        getAppSettings(),
+        loadAppLockConfig(),
+      ]);
       setWorkshopName(settings.workshopName);
       setLastBackupAt(settings.lastBackupAt);
       setAutoBackupWifi(settings.autoBackupWifi);
+      setAppLockConfig(lockConfig);
+      setIsAppLocked(lockConfig.enabled);
       setDbReady(true);
 
       const silentUser = await trySilentGoogleSignIn();
@@ -67,10 +90,12 @@ export default function RootLayout() {
       );
     }
   }, [
+    setAppLockConfig,
     setAutoBackupWifi,
     setDbError,
     setDbReady,
     setGoogleUser,
+    setIsAppLocked,
     setLastBackupAt,
     setWorkshopName,
   ]);
@@ -85,6 +110,41 @@ export default function RootLayout() {
     }
     const unsubscribe = subscribeWifiAutoBackup();
     return unsubscribe;
+  }, [isDbReady]);
+
+  useEffect(() => {
+    if (!isDbReady) {
+      return;
+    }
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextState: AppStateStatus) => {
+        const prevState = prevAppStateRef.current;
+        prevAppStateRef.current = nextState;
+
+        const state = useAppStore.getState();
+        if (nextState === 'background') {
+          if (state.appLockEnabled && !state.isBiometricPromptActive) {
+            backgroundedAtRef.current = Date.now();
+          }
+          return;
+        }
+
+        if (prevState === 'background' && nextState === 'active') {
+          const bgTime = backgroundedAtRef.current;
+          backgroundedAtRef.current = null;
+          if (
+            state.appLockEnabled &&
+            !state.isBiometricPromptActive &&
+            !state.isAppLocked &&
+            shouldAutoLock(bgTime, Date.now(), state.autoLockDelaySec)
+          ) {
+            state.setIsAppLocked(true);
+          }
+        }
+      }
+    );
+    return () => subscription.remove();
   }, [isDbReady]);
 
   if (dbError) {
@@ -156,7 +216,12 @@ export default function RootLayout() {
           name="settings/suppliers"
           options={{ title: 'Asal & Pemasok Kayu' }}
         />
+        <Stack.Screen
+          name="settings/security"
+          options={{ title: 'Kunci Aplikasi' }}
+        />
       </Stack>
+      {isAppLocked ? <AppLockScreen /> : null}
     </SafeAreaProvider>
   );
 }

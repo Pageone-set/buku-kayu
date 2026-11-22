@@ -29,6 +29,9 @@ import {
 import { useAppStore } from '../../store/useAppStore';
 import { COLORS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
 import {
+  formatAutoLockLabel,
+} from '../../utils/pinLockHelpers';
+import {
   formatBackupRelativeTime,
   formatBytesSize,
   formatDateTimeIndo,
@@ -44,6 +47,9 @@ export default function BackupSettingsScreen() {
   const cloudBackupInfo = useAppStore((s) => s.cloudBackupInfo);
   const autoBackupWifi = useAppStore((s) => s.autoBackupWifi);
   const setAutoBackupWifi = useAppStore((s) => s.setAutoBackupWifi);
+  const appLockEnabled = useAppStore((s) => s.appLockEnabled);
+  const biometricEnabled = useAppStore((s) => s.biometricEnabled);
+  const autoLockDelaySec = useAppStore((s) => s.autoLockDelaySec);
 
   const [nameInput, setNameInput] = useState(workshopName);
   const [savingName, setSavingName] = useState(false);
@@ -237,6 +243,28 @@ export default function BackupSettingsScreen() {
             title="Buka Menu Asal & Pemasok Kayu"
             variant="outline"
             onPress={() => router.push('/settings/suppliers')}
+          />
+        </SectionCard>
+
+        <SectionCard title="Kunci Aplikasi (PIN & Sidik Jari)">
+          <Text style={styles.bodyText}>
+            {appLockEnabled
+              ? `Aktif • ${
+                  biometricEnabled ? 'PIN 6 Angka + Sidik Jari' : 'PIN 6 Angka'
+                } • Kunci otomatis ${formatAutoLockLabel(autoLockDelaySec).toLowerCase()}`
+              : 'Belum aktif. Tambahkan PIN 6 angka dan sidik jari agar catatan bengkel aman saat HP dipegang anak kecil.'}
+          </Text>
+          <PrimaryButton
+            title="Atur PIN & Sidik Jari"
+            variant={appLockEnabled ? 'outline' : 'primary'}
+            onPress={() => router.push('/settings/security')}
+            icon={
+              <Feather
+                name="lock"
+                size={18}
+                color={appLockEnabled ? COLORS.textPrimary : COLORS.textOnDark}
+              />
+            }
           />
         </SectionCard>
 

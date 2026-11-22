@@ -27,7 +27,8 @@
       "expo-sqlite",
       "@react-native-google-signin/google-signin",
       "expo-sharing",
-      "expo-font"
+      "expo-font",
+      "expo-secure-store"
     ]
   }
 }

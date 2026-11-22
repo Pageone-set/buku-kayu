@@ -17,6 +17,11 @@ interface AppState {
   cloudBackupInfo: DriveBackupFileInfo | null;
   autoBackupWifi: boolean;
   hasPendingChanges: boolean;
+  appLockEnabled: boolean;
+  biometricEnabled: boolean;
+  autoLockDelaySec: number;
+  isAppLocked: boolean;
+  isBiometricPromptActive: boolean;
 
   setDbReady: (ready: boolean) => void;
   setDbError: (error: string | null) => void;
@@ -28,6 +33,13 @@ interface AppState {
   setCloudBackupInfo: (info: DriveBackupFileInfo | null) => void;
   setAutoBackupWifi: (enabled: boolean) => void;
   markSynced: (backupTimeIso: string) => void;
+  setAppLockConfig: (config: {
+    enabled: boolean;
+    biometricEnabled: boolean;
+    autoLockDelaySec: number;
+  }) => void;
+  setIsAppLocked: (locked: boolean) => void;
+  setBiometricPromptActive: (active: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -42,6 +54,11 @@ export const useAppStore = create<AppState>((set) => ({
   cloudBackupInfo: null,
   autoBackupWifi: true,
   hasPendingChanges: false,
+  appLockEnabled: false,
+  biometricEnabled: false,
+  autoLockDelaySec: 0,
+  isAppLocked: false,
+  isBiometricPromptActive: false,
 
   setDbReady: (ready) => set({ isDbReady: ready }),
   setDbError: (error) => set({ dbError: error }),
@@ -64,4 +81,13 @@ export const useAppStore = create<AppState>((set) => ({
       lastBackupAt: backupTimeIso,
       hasPendingChanges: false,
     }),
+  setAppLockConfig: (config) =>
+    set({
+      appLockEnabled: config.enabled,
+      biometricEnabled: config.biometricEnabled,
+      autoLockDelaySec: config.autoLockDelaySec,
+    }),
+  setIsAppLocked: (locked) => set({ isAppLocked: locked }),
+  setBiometricPromptActive: (active) =>
+    set({ isBiometricPromptActive: active }),
 }));
