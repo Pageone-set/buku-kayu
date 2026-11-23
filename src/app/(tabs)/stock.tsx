@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChipSelector } from '../../components/ui/ChipSelector';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { DimensionSpecStrip } from '../../components/ui/DimensionSpecStrip';
@@ -32,7 +32,14 @@ import {
 import { listWoodSuppliers } from '../../db/suppliersRepo';
 import { listWoodDimensions, listWoodTypes } from '../../db/woodPresetsRepo';
 import { useAppStore } from '../../store/useAppStore';
-import { COLORS, FONTS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import {
+  COLORS,
+  FONTS,
+  SHADOWS,
+  SIZING,
+  TYPOGRAPHY,
+  getFloatingTabBarClearance,
+} from '../../theme/tokens';
 import {
   LENGTH_PRESETS_CM,
   WoodDimensionPreset,
@@ -48,6 +55,7 @@ import {
 import { formatDimensionNumber } from '../../utils/woodPresetHelpers';
 
 export default function StockScreen() {
+  const insets = useSafeAreaInsets();
   const dbRevision = useAppStore((s) => s.dbRevision);
   const bumpDbRevision = useAppStore((s) => s.bumpDbRevision);
 
@@ -249,36 +257,6 @@ export default function StockScreen() {
           />
         </View>
 
-        <View style={styles.summaryStrip}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.summaryLabel}>Total Stok Ditampilkan</Text>
-            <Text style={styles.summaryValue}>
-              {totals.totalBatang} Batang • {formatVolumeM3(totals.totalM3)}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.shortcutRow}>
-          <TouchableOpacity
-            activeOpacity={0.78}
-            onPress={() => router.push('/settings/wood-presets')}
-            style={styles.presetShortcutBtn}
-          >
-            <Feather name="sliders" size={14} color={COLORS.navy} />
-            <Text style={styles.presetShortcutText}>Harga &amp; Ukuran</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            activeOpacity={0.78}
-            onPress={() => router.push('/settings/suppliers')}
-            style={styles.presetShortcutBtn}
-          >
-            <Feather name="map-pin" size={14} color={COLORS.ocean} />
-            <Text style={[styles.presetShortcutText, { color: COLORS.ocean }]}>
-              Asal &amp; Pemasok Kayu
-            </Text>
-          </TouchableOpacity>
-        </View>
-
         <ChipSelector
           options={filterTabs}
           value={filter}
@@ -290,7 +268,44 @@ export default function StockScreen() {
       <FlatList
         data={stocks}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          <View style={styles.listHeader}>
+            <View style={styles.summaryStrip}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.summaryLabel}>Total Stok Ditampilkan</Text>
+                <Text style={styles.summaryValue}>
+                  {totals.totalBatang} Batang • {formatVolumeM3(totals.totalM3)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.shortcutRow}>
+              <TouchableOpacity
+                activeOpacity={0.78}
+                onPress={() => router.push('/settings/wood-presets')}
+                style={styles.presetShortcutBtn}
+              >
+                <Feather name="sliders" size={14} color={COLORS.navy} />
+                <Text style={styles.presetShortcutText}>Harga &amp; Ukuran</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.78}
+                onPress={() => router.push('/settings/suppliers')}
+                style={styles.presetShortcutBtn}
+              >
+                <Feather name="map-pin" size={14} color={COLORS.ocean} />
+                <Text style={[styles.presetShortcutText, { color: COLORS.ocean }]}>
+                  Asal &amp; Pemasok Kayu
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        }
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: getFloatingTabBarClearance(insets.bottom) },
+        ]}
         renderItem={({ item }) => {
           const vol = calculateVolumeM3(
             item.length_cm,
@@ -733,6 +748,10 @@ const styles = StyleSheet.create({
     padding: 18,
     paddingBottom: 8,
     gap: 12,
+  },
+  listHeader: {
+    gap: 10,
+    marginBottom: 4,
   },
   headerRow: {
     flexDirection: 'row',

@@ -9,12 +9,19 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackupStatusBanner } from '../../components/domain/BackupStatusBanner';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { getDashboardSummary } from '../../db/cashFlowRepo';
 import { useAppStore } from '../../store/useAppStore';
-import { COLORS, FONTS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import {
+  COLORS,
+  FONTS,
+  SHADOWS,
+  SIZING,
+  TYPOGRAPHY,
+  getFloatingTabBarClearance,
+} from '../../theme/tokens';
 import { DashboardSummary } from '../../types/domain';
 import { formatDateIndo, formatRupiah, getTodayDatePrefix } from '../../utils/formatters';
 
@@ -29,6 +36,7 @@ const INITIAL_SUMMARY: DashboardSummary = {
 };
 
 export default function DashboardScreen() {
+  const insets = useSafeAreaInsets();
   const workshopName = useAppStore((s) => s.workshopName);
   const dbRevision = useAppStore((s) => s.dbRevision);
   const [summary, setSummary] = useState<DashboardSummary>(INITIAL_SUMMARY);
@@ -62,7 +70,10 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[
+          styles.container,
+          { paddingBottom: getFloatingTabBarClearance(insets.bottom) },
+        ]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }

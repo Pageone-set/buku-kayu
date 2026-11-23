@@ -107,6 +107,16 @@ export const SIZING = {
   spacingLg: 20,
 } as const;
 
+export const FLOATING_TAB_BAR_HEIGHT = 66;
+
+export function getFloatingTabBarBottomOffset(bottomInset: number): number {
+  return Math.max(bottomInset, 12);
+}
+
+export function getFloatingTabBarClearance(bottomInset: number): number {
+  return getFloatingTabBarBottomOffset(bottomInset) + FLOATING_TAB_BAR_HEIGHT + 28;
+}
+
 export const SHADOWS = {
   card: {
     shadowColor: '#0A3C6E',

@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChipSelector } from '../../components/ui/ChipSelector';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -26,7 +26,14 @@ import {
   listCashFlows,
 } from '../../db/cashFlowRepo';
 import { useAppStore } from '../../store/useAppStore';
-import { COLORS, FONTS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import {
+  COLORS,
+  FONTS,
+  SHADOWS,
+  SIZING,
+  TYPOGRAPHY,
+  getFloatingTabBarClearance,
+} from '../../theme/tokens';
 import {
   CASH_FLOW_CATEGORY_LABELS,
   CashFlow,
@@ -80,6 +87,7 @@ const INITIAL_SUMMARY: CashFlowSummary = {
 };
 
 export default function CashFlowScreen() {
+  const insets = useSafeAreaInsets();
   const workshopName = useAppStore((s) => s.workshopName);
   const dbRevision = useAppStore((s) => s.dbRevision);
   const bumpDbRevision = useAppStore((s) => s.bumpDbRevision);
@@ -270,7 +278,9 @@ export default function CashFlowScreen() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.topSection}>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>Buku Kas Harian</Text>
+          <Text style={styles.title} numberOfLines={1}>
+            Buku Kas
+          </Text>
           <View style={styles.headerBtns}>
             <TouchableOpacity
               activeOpacity={0.8}
@@ -289,86 +299,99 @@ export default function CashFlowScreen() {
             />
           </View>
         </View>
-
-        <ChipSelector
-          options={PERIOD_OPTIONS}
-          value={period}
-          onChange={setPeriod}
-          scrollable
-        />
-
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Uang Masuk</Text>
-            <Text style={[styles.summaryVal, { color: COLORS.green }]}>
-              +{formatRupiah(summary.totalIn)}
-            </Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Pengeluaran Usaha</Text>
-            <Text style={[styles.summaryVal, { color: COLORS.red }]}>
-              -{formatRupiah(summary.businessOut)}
-            </Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { fontFamily: FONTS.extraBold }]}>
-              Sisa Bersih Usaha
-            </Text>
-            <Text
-              style={[
-                styles.summaryVal,
-                {
-                  color: summary.businessNet >= 0 ? COLORS.green : COLORS.red,
-                },
-              ]}
-            >
-              {formatRupiah(summary.businessNet)}
-            </Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.summaryRow}>
-            <Text style={styles.priveLabel}>Ambil Pribadi (Prive)</Text>
-            <Text style={styles.priveVal}>
-              -{formatRupiah(summary.personalDrawOut)}
-            </Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { fontFamily: FONTS.extraBold }]}>
-              Sisa Uang di Kas
-            </Text>
-            <Text style={styles.cashBalanceVal}>
-              {formatRupiah(summary.cashBalance)}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.searchBox}>
-          <Feather name="search" size={18} color={COLORS.textMuted} />
-          <TextInput
-            style={styles.searchInput}
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Cari keterangan kas..."
-            placeholderTextColor={COLORS.textMuted}
-          />
-          {search.length > 0 ? (
-            <TouchableOpacity onPress={() => setSearch('')}>
-              <Feather name="x" size={18} color={COLORS.textMuted} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        <ChipSelector
-          options={TYPE_OPTIONS}
-          value={typeFilter}
-          onChange={setTypeFilter}
-        />
       </View>
 
       <FlatList
         data={visibleRows}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          <View style={styles.listHeader}>
+            <ChipSelector
+              options={PERIOD_OPTIONS}
+              value={period}
+              onChange={setPeriod}
+              scrollable
+            />
+
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Uang Masuk</Text>
+                <Text style={[styles.summaryVal, { color: COLORS.green }]}>
+                  +{formatRupiah(summary.totalIn)}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Pengeluaran Usaha</Text>
+                <Text style={[styles.summaryVal, { color: COLORS.red }]}>
+                  -{formatRupiah(summary.businessOut)}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text
+                  style={[styles.summaryLabel, { fontFamily: FONTS.extraBold }]}
+                >
+                  Sisa Bersih Usaha
+                </Text>
+                <Text
+                  style={[
+                    styles.summaryVal,
+                    {
+                      color:
+                        summary.businessNet >= 0 ? COLORS.green : COLORS.red,
+                    },
+                  ]}
+                >
+                  {formatRupiah(summary.businessNet)}
+                </Text>
+              </View>
+              <View style={styles.divider} />
+              <View style={styles.summaryRow}>
+                <Text style={styles.priveLabel}>Ambil Pribadi (Prive)</Text>
+                <Text style={styles.priveVal}>
+                  -{formatRupiah(summary.personalDrawOut)}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text
+                  style={[styles.summaryLabel, { fontFamily: FONTS.extraBold }]}
+                >
+                  Sisa Uang di Kas
+                </Text>
+                <Text style={styles.cashBalanceVal}>
+                  {formatRupiah(summary.cashBalance)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.searchBox}>
+              <Feather name="search" size={18} color={COLORS.textMuted} />
+              <TextInput
+                style={styles.searchInput}
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Cari keterangan kas..."
+                placeholderTextColor={COLORS.textMuted}
+              />
+              {search.length > 0 ? (
+                <TouchableOpacity onPress={() => setSearch('')}>
+                  <Feather name="x" size={18} color={COLORS.textMuted} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            <ChipSelector
+              options={TYPE_OPTIONS}
+              value={typeFilter}
+              onChange={setTypeFilter}
+              scrollable
+            />
+          </View>
+        }
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: getFloatingTabBarClearance(insets.bottom) },
+        ]}
         renderItem={({ item }) => {
           const isIn = item.type === 'IN';
           const isPrive = item.category === 'PERSONAL_DRAW';
@@ -440,7 +463,12 @@ export default function CashFlowScreen() {
         onRequestClose={() => setModalOpen(false)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalSheet}>
+          <View
+            style={[
+              styles.modalSheet,
+              { paddingBottom: Math.max(insets.bottom, 16) + 16 },
+            ]}
+          >
             <Text style={styles.modalTitle}>Catat Arus Uang Harian</Text>
 
             <ChipSelector
@@ -527,7 +555,12 @@ export default function CashFlowScreen() {
         onRequestClose={() => setExportModalOpen(false)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalSheet}>
+          <View
+            style={[
+              styles.modalSheet,
+              { paddingBottom: Math.max(insets.bottom, 16) + 16 },
+            ]}
+          >
             <Text style={styles.modalTitle}>
               Ekspor Catatan Keuangan Bulanan
             </Text>
@@ -659,15 +692,19 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
   },
   topSection: {
-    padding: 18,
-    paddingBottom: 8,
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 10,
+  },
+  listHeader: {
     gap: 12,
+    marginBottom: 4,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: 8,
   },
   headerBtns: {
     flexDirection: 'row',
@@ -675,8 +712,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   exportPillBtn: {
-    minHeight: 46,
-    paddingHorizontal: 14,
+    minHeight: 44,
+    paddingHorizontal: 12,
     borderRadius: SIZING.radiusPill,
     backgroundColor: COLORS.navyLight,
     flexDirection: 'row',
@@ -690,12 +727,14 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: TYPOGRAPHY.title,
+    fontSize: 22,
     fontFamily: FONTS.extraBold,
     color: COLORS.textPrimary,
   },
   addBtn: {
+    minHeight: 44,
     paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   summaryCard: {
     backgroundColor: COLORS.surface,

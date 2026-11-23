@@ -1,4 +1,9 @@
 import {
+  FLOATING_TAB_BAR_HEIGHT,
+  getFloatingTabBarBottomOffset,
+  getFloatingTabBarClearance,
+} from '../src/theme/tokens';
+import {
   buildSafeFileName,
   calculateDaysFromToday,
   formatBackupRelativeTime,
@@ -89,5 +94,21 @@ describe('formatters', () => {
     const safeLong = buildSafeFileName(longName, 'pdf');
     expect(safeLong.endsWith('.pdf')).toBe(true);
     expect(safeLong.length).toBeLessThanOrEqual(84);
+  });
+
+  test('getFloatingTabBarClearance memberi ruang aman di atas floating navbar termasuk navigasi 3-tombol Android', () => {
+    expect(getFloatingTabBarBottomOffset(0)).toBe(12);
+    expect(getFloatingTabBarBottomOffset(24)).toBe(24);
+    expect(getFloatingTabBarBottomOffset(48)).toBe(48);
+
+    expect(getFloatingTabBarClearance(0)).toBe(106);
+    expect(getFloatingTabBarClearance(24)).toBe(118);
+    expect(getFloatingTabBarClearance(48)).toBe(142);
+
+    for (const inset of [0, 16, 24, 34, 48]) {
+      expect(getFloatingTabBarClearance(inset)).toBeGreaterThan(
+        getFloatingTabBarBottomOffset(inset) + FLOATING_TAB_BAR_HEIGHT
+      );
+    }
   });
 });

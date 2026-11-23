@@ -9,14 +9,21 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChipSelector } from '../../components/ui/ChipSelector';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PrimaryButton } from '../../components/ui/PrimaryButton';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { listWoodSales } from '../../db/salesRepo';
 import { useAppStore } from '../../store/useAppStore';
-import { COLORS, FONTS, SHADOWS, SIZING, TYPOGRAPHY } from '../../theme/tokens';
+import {
+  COLORS,
+  FONTS,
+  SHADOWS,
+  SIZING,
+  TYPOGRAPHY,
+  getFloatingTabBarClearance,
+} from '../../theme/tokens';
 import { WoodPaymentStatus, WoodSale } from '../../types/domain';
 import { calculateRemainingAmount } from '../../utils/cubicCalculator';
 import {
@@ -34,6 +41,7 @@ const FILTER_OPTIONS: readonly { label: string; value: SalesFilter }[] = [
 ];
 
 export default function SalesListScreen() {
+  const insets = useSafeAreaInsets();
   const dbRevision = useAppStore((s) => s.dbRevision);
   const [filter, setFilter] = useState<SalesFilter>('ALL');
   const [search, setSearch] = useState('');
@@ -97,7 +105,11 @@ export default function SalesListScreen() {
       <FlatList
         data={sales}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: getFloatingTabBarClearance(insets.bottom) },
+        ]}
         renderItem={({ item }) => {
           const remaining = calculateRemainingAmount(
             item.total_amount,

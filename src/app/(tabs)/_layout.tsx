@@ -3,7 +3,13 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, FONTS, SHADOWS } from '../../theme/tokens';
+import {
+  COLORS,
+  FLOATING_TAB_BAR_HEIGHT,
+  FONTS,
+  SHADOWS,
+  getFloatingTabBarBottomOffset,
+} from '../../theme/tokens';
 
 type CustomTabBarProps = Parameters<
   NonNullable<React.ComponentProps<typeof Tabs>['tabBar']>
@@ -26,7 +32,7 @@ function FloatingPillTabBar({
   navigateToTab,
 }: CustomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const bottomOffset = Math.max(insets.bottom, 12);
+  const bottomOffset = getFloatingTabBarBottomOffset(insets.bottom);
 
   return (
     <View
@@ -123,7 +129,7 @@ const styles = StyleSheet.create({
   },
   capsule: {
     width: '100%',
-    height: 66,
+    height: FLOATING_TAB_BAR_HEIGHT,
     borderRadius: 999,
     backgroundColor: COLORS.navBarBg,
     flexDirection: 'row',
